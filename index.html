@@ -5,22 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#101013">
   <title>Kárdex · Mi espacio</title>
- 
+
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='9' fill='%2318181c'/><circle cx='16' cy='16' r='7' fill='none' stroke='%23e3c08d' stroke-width='3'/></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
- 
+
   <script>
     try {
+      const t = localStorage.getItem("tema");
       document.documentElement.dataset.theme =
-        localStorage.getItem("tema") ||
+        t === "light" || t === "dark" ? t :
         (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
     } catch {
       document.documentElement.dataset.theme = "dark";
     }
   </script>
- 
+
   <style>
     :root {
       --bg:#101013; --panel:#161619; --card:#1d1d21; --text:#f0efed;
@@ -90,6 +91,35 @@
     .nav span {min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .nav small {font-size:11px}
     .sidefoot {margin-top:auto;display:grid;gap:9px;border-top:1px solid var(--line);padding-top:12px}
+    aside {padding-bottom:0}
+    .sidefoot {position:sticky;bottom:0;z-index:1;background:var(--bg);padding-bottom:14px}
+    .who {display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border:1px solid var(--line);
+      border-radius:10px;background:var(--panel);color:var(--text)}
+    .who:hover {filter:brightness(1.12)}
+    .avatar {flex:none;width:28px;height:28px;border-radius:50%;background:var(--accent);color:var(--on-accent);
+      display:grid;place-items:center;font-size:12px;font-weight:700}
+    .whoname {flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+    .gear {flex:none;color:var(--muted);transition:color .15s,transform .3s}
+    .who:hover .gear {color:var(--accent);transform:rotate(45deg)}
+    @media(max-width:710px){.sidefoot {background:var(--panel)}}
+    #settings {width:min(640px,94vw);padding:28px}
+    #settings .stack {gap:22px}
+    #settings .eyebrow {margin:0 0 8px 4px}
+    .sethead {display:flex;align-items:center;gap:14px;padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--panel)}
+    .sethead .avatar {width:48px;height:48px;font-size:18px}
+    .sethead b {font-size:16px;font-weight:600}
+    .setgrp {border:1px solid var(--line);border-radius:14px;background:var(--panel)}
+    .setrow {display:flex;align-items:center;flex-wrap:wrap;gap:14px;padding:14px 16px}
+    .setrow+.setrow {border-top:1px solid var(--line)}
+    .setrow .grow b {display:block;font-weight:500}
+    .setrow small {font-size:12px}
+    .setico {flex:none;width:36px;height:36px;border-radius:10px;background:var(--card);border:1px solid var(--line);display:grid;place-items:center;color:var(--accent)}
+    .seg {display:flex;padding:3px;border:1px solid var(--line);border-radius:10px}
+    .seg button {padding:6px 12px;border-radius:7px;color:var(--muted);text-align:center}
+    .seg [aria-pressed="true"] {background:var(--accent);color:var(--on-accent);font-weight:600}
+    .setrow.note {gap:10px;padding:12px 16px;color:var(--muted);font-size:12px}
+    .dot {flex:none;width:8px;height:8px;border-radius:50%;background:var(--accent)}
+    .dot.stale {background:var(--danger)}
     .tools,.actions,.chips {display:flex;align-items:center;gap:7px;flex-wrap:wrap}
     .list {display:flex;flex-direction:column;background:var(--panel);border-right:1px solid var(--line);overflow:hidden}
     .listhead {display:grid;gap:12px;padding:18px 14px 10px}
@@ -153,9 +183,9 @@
   </style>
 </head>
 <body>
- 
+
 <div id="boot" class="center">Preparando Kárdex…</div>
- 
+
 <main id="auth" class="center" hidden>
   <div class="authbox">
     <div class="brand"><span class="mark"></span>Kárdex</div>
@@ -173,7 +203,7 @@
     </form>
   </div>
 </main>
- 
+
 <div id="shell" class="shell" hidden>
   <aside aria-label="Navegación">
     <div class="brand"><span class="mark"></span>Kárdex</div>
@@ -191,12 +221,16 @@
       <div id="groups"></div>
     </div>
     <div class="sidefoot">
-      <button id="who" class="nav" data-act="settings" title="Configuración" aria-label="Configuración"></button>
+      <button id="who" class="who" data-act="settings" title="Configuración" aria-label="Configuración">
+        <span id="whoAv" class="avatar" aria-hidden="true"></span>
+        <span id="whoName" class="whoname"></span>
+        <svg class="gear" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
       <input id="importFile" type="file" accept="application/json,.json" hidden>
     </div>
   </aside>
   <button id="scrim" data-act="navclose" aria-label="Cerrar menú"></button>
- 
+
   <section class="list" aria-label="Lista de registros">
     <header class="listhead">
       <div class="headrow">
@@ -209,10 +243,10 @@
     </header>
     <div id="items"></div>
   </section>
- 
+
   <main id="detail" class="detail"></main>
 </div>
- 
+
 <dialog id="editor" aria-labelledby="editorTitle">
   <div class="modalhead">
     <h2 id="editorTitle"></h2>
@@ -227,41 +261,59 @@
     </div>
   </form>
 </dialog>
- 
+
 <dialog id="settings" aria-labelledby="setTitle">
   <div class="modalhead"><h2 id="setTitle">Configuración</h2><button class="icon" data-act="setclose" aria-label="Cerrar">×</button></div>
   <div class="stack">
-    <div class="box"><p class="eyebrow">Cuenta</p><p id="setUser" class="muted"></p>
-      <div class="actions"><button type="button" class="btn" data-act="name">Cambiar nombre</button></div></div>
-    <div class="box"><p class="eyebrow">Apariencia</p>
-      <div class="actions"><button type="button" class="btn" data-act="theme">Cambiar tema</button></div></div>
-    <div class="box"><p class="eyebrow">Datos</p>
-      <p class="muted">Exporta un respaldo con ambos espacios o restaura uno guardado.</p>
-      <div class="actions"><button type="button" class="btn" data-act="export">Exportar</button>
-      <button type="button" class="btn" data-act="import">Importar</button></div></div>
-    <div class="actions"><button type="button" class="btn danger" data-act="logout">Salir</button></div>
+    <div class="sethead">
+      <span id="setAv" class="avatar" aria-hidden="true"></span>
+      <div class="grow"><b id="setName"></b><br><small id="setUser"></small></div>
+      <button type="button" class="btn" data-act="name">Editar nombre</button>
+    </div>
+    <div><p class="eyebrow">Apariencia</p>
+      <div class="setgrp"><div class="setrow">
+        <div class="grow"><b>Tema</b><small class="muted">Se recuerda en este navegador</small></div>
+        <div class="seg" role="group" aria-label="Tema">
+          <button type="button" data-theme-opt="light" aria-pressed="false">Claro</button>
+          <button type="button" data-theme-opt="dark" aria-pressed="false">Oscuro</button>
+          <button type="button" data-theme-opt="auto" aria-pressed="false">Automático</button>
+        </div></div></div></div>
+    <div><p class="eyebrow">Respaldo de datos</p>
+      <div class="setgrp">
+        <div class="setrow"><span class="setico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg></span>
+          <div class="grow"><b>Exportar respaldo</b><small class="muted">Un archivo JSON con Soporte y Universidad</small></div>
+          <button type="button" class="btn" data-act="export">Exportar</button></div>
+        <div class="setrow"><span class="setico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3m0 0L8 7m4-4l4 4M5 21h14"/></svg></span>
+          <div class="grow"><b>Importar respaldo</b><small class="muted">Restaura desde un archivo; no borra lo que ya tienes</small></div>
+          <button type="button" class="btn" data-act="import">Importar</button></div>
+        <div class="setrow note"><span id="bkDot" class="dot"></span><span id="bkText"></span></div>
+      </div></div>
+    <div class="setgrp"><div class="setrow">
+      <div class="grow"><b>Cerrar sesión</b><small class="muted">Salir de este navegador</small></div>
+      <button type="button" class="btn danger" data-act="logout">Salir</button></div></div>
+    <p class="muted" style="text-align:center;font-size:12px">Kárdex · versión 3</p>
   </div>
 </dialog>
- 
+
 <dialog id="palette" aria-label="Buscar en el espacio activo">
   <div class="modalhead"><h2>Buscar</h2><button class="icon" data-act="palclose" aria-label="Cerrar">×</button></div>
   <input id="pq" type="search" placeholder="Escribe un título, materia o aplicación…" aria-label="Buscar">
   <div id="results"></div>
 </dialog>
- 
+
 <div id="toast" role="status" aria-live="polite" hidden></div>
- 
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js" integrity="sha384-0w2KAL2YHP6wKOkUDzkCDGgVvfmHnj02DHeQ6XcHOgTfFsGyonKOpShMH1x6nk9o" crossorigin="anonymous"></script>
 <script>
 "use strict";
- 
+
 // ───────────── Configuración ─────────────
 const SUPABASE_URL = "https://jcvqubsmlydseqvkkhib.supabase.co";
 const SUPABASE_KEY = "sb_publishable_yo-ElOGjLDA3u0jrFnuu6A_biyZBDbS";
 const db = window.supabase?.createClient(SUPABASE_URL, SUPABASE_KEY);
 const $ = s => document.querySelector(s);
 const root = document.documentElement;
- 
+
 const table = {
   soporte:"entradas", materia:"kx_materias",
   clase:"kx_clases", tarea:"kx_actividades"
@@ -274,14 +326,14 @@ const local = {
   get(k,f){try{return localStorage.getItem(k)||f}catch{return f}},
   set(k,v){try{localStorage.setItem(k,v)}catch{}}
 };
- 
+
 const emptyData = () => ({soporte:[], materia:[], clase:[], tarea:[]});
 const S = {
   user:null, data:emptyData(), space:"soporte", view:"all",
   group:"", chip:"", q:"", selected:null, variables:new Map(), steps:new Map(),
   month:new Date(), day:"", edit:null, loading:false, writing:false, errors:{}, epoch:0
 };
- 
+
 const esc = v => String(v ?? "").replace(/[&<>"']/g,
   c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const norm = v => String(v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
@@ -303,7 +355,7 @@ const option = (v,t,selected) =>
 const action = (a,t,cls="btn") => `<button type="button" class="${cls}" data-act="${a}">${esc(t)}</button>`;
 const keyBtn = (k,r,text,cls="subrow") =>
   `<button class="${cls}" data-open="${k}" data-id="${esc(r.id)}">${esc(text)}</button>`;
- 
+
 function httpsUrl(value){
   if (!value) return "";
   try {const u=new URL(value);return u.protocol==="https:" ? u.href : ""} catch{return ""}
@@ -323,10 +375,18 @@ function toast(msg){
   clearTimeout(toast.timer); toast.timer=setTimeout(()=>t.hidden=true,3400);
 }
 function errorMessage(e){return e?.message || "No se pudo completar la operación."}
-function setTheme(t){
-  root.dataset.theme=t; local.set("tema",t);
+const sysLight=matchMedia("(prefers-color-scheme: light)");
+const themePref=()=>{const v=local.get("tema","auto");return v==="light"||v==="dark"?v:"auto"};
+function setTheme(pref){
+  if(pref!=="light"&&pref!=="dark")pref="auto";
+  local.set("tema",pref);
+  const t=pref==="auto"?(sysLight.matches?"light":"dark"):pref;
+  root.dataset.theme=t;
   $('meta[name="theme-color"]').content=t==="dark"?"#101013":"#f6f5f2";
+  document.querySelectorAll("[data-theme-opt]").forEach(b=>
+    b.setAttribute("aria-pressed",b.dataset.themeOpt===pref));
 }
+sysLight.addEventListener?.("change",()=>{if(themePref()==="auto")setTheme("auto")});
 function clearSelection(){
   S.selected=null; S.variables.clear(); $("#shell").classList.remove("reading");
 }
@@ -378,7 +438,7 @@ function entries(){
   return rows.filter(([k,r])=>
     (!S.chip||(k==="soporte"?r.categoria:k==="clase"?r.modulo:r.estado)===S.chip)&&matches(k,r,S.q));
 }
- 
+
 // ───────────── Sesión y lectura ─────────────
 async function readAll(k){
   const rows=[];
@@ -424,14 +484,14 @@ $("#login").onsubmit=async e=>{
     "Correo o contraseña incorrectos.":errorMessage(err)}
   finally{b.disabled=false}
 };
- 
+
 // ───────────── Navegación y lista ─────────────
 function navButton(attr,value,label,on,count=""){
   return `<button class="nav ${on?"on":""}" data-${attr}="${esc(value)}" aria-pressed="${on}">
     <span>${esc(label)}</span><small>${esc(count)}</small></button>`;
 }
 function renderSide(){
-  $("#who").textContent="⚙  "+displayName();
+  const nm=displayName();$("#whoName").textContent=nm;$("#whoAv").textContent=(nm.trim()[0]||"?").toUpperCase();
   document.querySelectorAll("button[data-space]").forEach(b=>
     b.setAttribute("aria-pressed",b.dataset.space===S.space));
   const views=isUni()?uniViews:{all:"Todo",fijadas:"Fijadas",...types};
@@ -485,7 +545,7 @@ function render(){
   if(!S.user)return;
   renderSide(); renderList(); renderDetail();
 }
- 
+
 // ───────────── Plantillas y detalle de soporte ─────────────
 const varRE=/\{\{\s*([^{}]+?)\s*\}\}/g;
 function variableNames(t){return [...new Set([...String(t||"").matchAll(varRE)].map(x=>x[1]))]}
@@ -564,7 +624,7 @@ async function copyTemplate(field){
   await copyText(raw.replace(varRE,(m,k)=>S.variables.get(k)||m));
   toast(missing.length?"Copiado; falta completar: "+missing.join(", "):"Copiado al portapapeles.");
 }
- 
+
 // ───────────── Universidad ─────────────
 function stats(items){
   return `<div class="stats">${items.map(([v,t,n])=>
@@ -667,7 +727,7 @@ function renderDetail(){
   }
   $("#detail").innerHTML=`<div class="paper">${dash?`<div class="actions">${mobileMenu}</div>`:""}${loadAlert()}${html}</div>`;
 }
- 
+
 // ───────────── Editor ─────────────
 const field=(name,label,value="",type="text",attrs="")=>
   `<label class="field"><span>${esc(label)}</span><input name="${name}" type="${type}" value="${esc(value)}" ${attrs}></label>`;
@@ -826,7 +886,7 @@ async function removeCurrent(){
     S.data[k]=S.data[k].filter(x=>uid(x.id)!==uid(r.id));clearSelection();render();toast("Registro borrado.");
   }finally{S.writing=false}
 }
- 
+
 // ───────────── Búsqueda y acciones ─────────────
 function palette(){
   if($("#editor").open)return;
@@ -850,7 +910,21 @@ function exportData(){
   const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:"application/json"}));
   const a=document.createElement("a");a.href=url;a.download=`kardex-${today()}.json`;
   document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
+  if(S.user)local.set("kx-backup-"+S.user.id,new Date().toISOString());
   toast("Copia exportada. Incluye ambos espacios, no los archivos externos.");
+}
+function backupInfo(){
+  const iso=S.user?local.get("kx-backup-"+S.user.id,""):"";
+  if(!iso||isNaN(new Date(iso)))return {txt:"Aún no has exportado un respaldo · se recomienda uno por semana",stale:true};
+  const days=Math.max(0,Math.floor((Date.now()-new Date(iso))/864e5)),when=dateText(isoDay(new Date(iso)));
+  return days>7?{txt:`Último respaldo: ${when} · hace ${days} días, conviene exportar uno nuevo`,stale:true}:
+    {txt:`Último respaldo: ${when} · se recomienda uno por semana`,stale:false};
+}
+function fillSettings(){
+  const n=displayName(),b=backupInfo();
+  $("#setName").textContent=n;$("#setAv").textContent=(n.trim()[0]||"?").toUpperCase();
+  $("#setUser").textContent=S.user?.email||"";
+  $("#bkText").textContent=b.txt;$("#bkDot").classList.toggle("stale",b.stale);
 }
 async function importData(file){
   if(S.writing||S.loading)return toast("Espera a que termine la operación.");
@@ -878,7 +952,7 @@ async function act(a){
   const r=current();
   if(a==="menu")return $("#shell").classList.add("navopen");
   if(a==="navclose")return $("#shell").classList.remove("navopen");
-  if(a==="settings"){$("#setUser").textContent=S.user?.email||"";return $("#settings").showModal()}
+  if(a==="settings"){fillSettings();return $("#settings").showModal()}
   if(a==="setclose")return $("#settings").close();
   if(a==="back"){clearSelection();render();return}
   if(a==="cancel"){if(!S.writing)$("#editor").close();return}
@@ -940,10 +1014,11 @@ async function act(a){
   }
 }
 function run(a){Promise.resolve(act(a)).catch(e=>toast(errorMessage(e)))}
- 
+
 document.addEventListener("click",e=>{
   const b=e.target.closest("button");if(!b)return;
   const d=b.dataset;
+  if(d.themeOpt)return setTheme(d.themeOpt);
   if(d.act)return run(d.act);
   if(d.space)return switchSpace(d.space);
   if(d.view)return changeView(d.view);
@@ -1018,9 +1093,9 @@ document.addEventListener("keydown",e=>{
   const a={n:"new",e:"edit",p:"pin",delete:"delete",c:e.shiftKey?"copyend":"copy"}[key];
   if(a){e.preventDefault();run(a)}
 });
- 
+
 // ───────────── Inicio ─────────────
-setTheme(root.dataset.theme||"dark");
+setTheme(themePref());
 if(db){
   db.auth.onAuthStateChange((_event,s)=>{setTimeout(()=>session(s?.user||null),0)});
 }else{
