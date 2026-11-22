@@ -191,17 +191,8 @@
       <div id="groups"></div>
     </div>
     <div class="sidefoot">
-      <button id="who" class="nav" data-act="name" title="Cambiar mi nombre"></button>
-      <p class="eyebrow">Datos</p>
-      <div class="tools">
-        <button class="btn" data-act="export">Exportar</button>
-        <button class="btn" data-act="import">Importar</button>
-      </div>
+      <button id="who" class="nav" data-act="settings" title="Configuración" aria-label="Configuración"></button>
       <input id="importFile" type="file" accept="application/json,.json" hidden>
-      <div class="tools">
-        <button class="btn" data-act="theme">Tema</button>
-        <button class="btn" data-act="logout">Salir</button>
-      </div>
     </div>
   </aside>
   <button id="scrim" data-act="navclose" aria-label="Cerrar menú"></button>
@@ -214,7 +205,7 @@
         <button id="newBtn" class="btn primary" data-act="new">+ Nueva</button>
       </div>
       <input id="q" type="search" placeholder="Filtrar esta lista…" aria-label="Filtrar esta lista">
-      <div id="chips" class="chips"></div>
+      <select id="chipSel" aria-label="Filtrar" hidden></select>
     </header>
     <div id="items"></div>
   </section>
@@ -235,6 +226,21 @@
       <button id="save" class="btn primary">Guardar</button>
     </div>
   </form>
+</dialog>
+ 
+<dialog id="settings" aria-labelledby="setTitle">
+  <div class="modalhead"><h2 id="setTitle">Configuración</h2><button class="icon" data-act="setclose" aria-label="Cerrar">×</button></div>
+  <div class="stack">
+    <div class="box"><p class="eyebrow">Cuenta</p><p id="setUser" class="muted"></p>
+      <div class="actions"><button type="button" class="btn" data-act="name">Cambiar nombre</button></div></div>
+    <div class="box"><p class="eyebrow">Apariencia</p>
+      <div class="actions"><button type="button" class="btn" data-act="theme">Cambiar tema</button></div></div>
+    <div class="box"><p class="eyebrow">Datos</p>
+      <p class="muted">Exporta un respaldo con ambos espacios o restaura uno guardado.</p>
+      <div class="actions"><button type="button" class="btn" data-act="export">Exportar</button>
+      <button type="button" class="btn" data-act="import">Importar</button></div></div>
+    <div class="actions"><button type="button" class="btn danger" data-act="logout">Salir</button></div>
+  </div>
 </dialog>
  
 <dialog id="palette" aria-label="Buscar en el espacio activo">
@@ -425,7 +431,7 @@ function navButton(attr,value,label,on,count=""){
     <span>${esc(label)}</span><small>${esc(count)}</small></button>`;
 }
 function renderSide(){
-  $("#who").textContent=displayName();
+  $("#who").textContent="⚙  "+displayName();
   document.querySelectorAll("button[data-space]").forEach(b=>
     b.setAttribute("aria-pressed",b.dataset.space===S.space));
   const views=isUni()?uniViews:{all:"Todo",fijadas:"Fijadas",...types};
@@ -435,8 +441,9 @@ function renderSide(){
   const groups=isUni()?S.data.materia.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre,"es"))
     .map(r=>[r.id,r.nombre+(r.semestre?" · "+r.semestre:"")]):
     unique(S.data.soporte.map(r=>r.aplicacion)).map(x=>[x,x]);
-  $("#groups").innerHTML=navButton("group","","Todas",!S.group)+groups.map(([id,name])=>
-    navButton("group",id,name,S.group===id)).join("");
+  $("#groups").innerHTML=groups.map(([id,name])=>
+    navButton("group",id,name,S.group===id,S.group===id?"×":"")).join("")||
+    `<p class="empty">Aún no hay elementos.</p>`;
 }
 function rowHtml(k,r){
   const meta=k==="soporte"?`${r.aplicacion} · ${singular[r.tipo]||"Entrada"}`:
@@ -460,8 +467,9 @@ function renderList(){
     k!=="soporte"||S.view==="all"||(S.view==="fijadas"?r.fijado:r.tipo===S.view)
   ).map(r=>k==="clase"?r.modulo:r.categoria)).map(v=>[v,v]);
   if(!chips.some(([v])=>v===S.chip))S.chip="";
-  $("#chips").innerHTML=chips.length?[["","Todas"],...chips].map(([v,t])=>
-    `<button class="pill ${S.chip===v?"on":""}" data-chip="${esc(v)}">${esc(t)}</button>`).join(""):"";
+  const sel=$("#chipSel"),all=!isUni()?"Todas las categorías":k==="clase"?"Todos los módulos":"Todos los estados";
+  sel.hidden=!chips.length;
+  sel.innerHTML=option("",all,S.chip)+chips.map(([v,t])=>option(v,t,S.chip)).join("");
   const l=entries();
   $("#listCount").textContent=S.loading?"Cargando…":`${l.length} registros`;
   $("#items").innerHTML=l.map(([t,r])=>rowHtml(t,r)).join("")||
@@ -870,18 +878,20 @@ async function act(a){
   const r=current();
   if(a==="menu")return $("#shell").classList.add("navopen");
   if(a==="navclose")return $("#shell").classList.remove("navopen");
+  if(a==="settings"){$("#setUser").textContent=S.user?.email||"";return $("#settings").showModal()}
+  if(a==="setclose")return $("#settings").close();
   if(a==="back"){clearSelection();render();return}
   if(a==="cancel"){if(!S.writing)$("#editor").close();return}
   if(a==="palclose")return $("#palette").close();
   if(a==="theme")return setTheme(root.dataset.theme==="dark"?"light":"dark");
-  if(a==="export")return exportData();
+  if(a==="export"){$("#settings").close();return exportData()}
   if(a==="search")return palette();
-  if(a==="logout"){
+  if(a==="logout"){$("#settings").close();
     if(S.writing)return toast("Espera a que termine el guardado.");
     const {error}=await db.auth.signOut();if(error)throw error;return;
   }
   if(a==="reload"){if(!S.loading)await load();return}
-  if(a==="name")return edit("name");
+  if(a==="name"){$("#settings").close();return edit("name")}
   if(a==="subject")return edit("materia");
   if(a==="editsubject")return edit("materia",find("materia",S.group));
   if(a==="new")return newEntry();
@@ -893,7 +903,7 @@ async function act(a){
     S.day="";return renderDetail();
   }
   if(a==="alldays"){S.day="";return renderDetail()}
-  if(a==="import")return $("#importFile").click();
+  if(a==="import"){$("#settings").close();return $("#importFile").click()}
   if(a==="delsubject"){
     const m=find("materia",S.group);if(!m||S.writing)return;
     const c=S.data.clase.filter(x=>uid(x.materia_id)===uid(m.id)).length,
@@ -938,7 +948,7 @@ document.addEventListener("click",e=>{
   if(d.space)return switchSpace(d.space);
   if(d.view)return changeView(d.view);
   if("group" in d){
-    S.group=d.group;changeView(isUni()?"resumen":S.view);return;
+    S.group=uid(S.group)===uid(d.group)?"":d.group;changeView(isUni()?"resumen":S.view);return;
   }
   if("chip" in d){S.chip=d.chip;renderList();return}
   if(d.day){S.day=S.day===d.day?"":d.day;renderDetail();return}
@@ -952,6 +962,7 @@ document.addEventListener("click",e=>{
   }
 });
 $("#q").oninput=e=>{S.q=e.target.value;renderList()};
+$("#chipSel").onchange=e=>{S.chip=e.target.value;renderList()};
 $("#pq").oninput=renderResults;
 $("#importFile").onchange=e=>{
   const f=e.target.files[0];e.target.value="";
