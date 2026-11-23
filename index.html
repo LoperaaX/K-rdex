@@ -120,6 +120,40 @@
     .setrow.note {gap:10px;padding:12px 16px;color:var(--muted);font-size:12px}
     .dot {flex:none;width:8px;height:8px;border-radius:50%;background:var(--accent)}
     .dot.stale {background:var(--danger)}
+    dialog {--dp:20px}
+    #settings {--dp:28px}
+    .modalhead {position:sticky;top:calc(var(--dp) * -1);z-index:2;margin:calc(var(--dp) * -1) calc(var(--dp) * -1) 16px;
+      padding:var(--dp) var(--dp) 14px;background:var(--card)}
+    .closebtn {display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;
+      padding:0 14px 0 16px;border:1px solid var(--accent);border-radius:999px;background:transparent;
+      color:var(--accent);font-weight:600;font-size:13px;white-space:nowrap;transition:background .15s,color .15s}
+    .closebtn:hover {background:var(--accent);color:var(--on-accent)}
+    #auth {--bg:#1a1a1d;--panel:#2b2b2e;--text:#f0efed;--muted:#b9b6ad;--line:#8a7348;--accent:#c4a05e;
+      --on-accent:#1a1409;--danger:#fa9389;--gold:#d3b07a;color-scheme:dark;
+      min-height:100dvh;display:grid;grid-template-columns:1fr 1fr;background:var(--bg);color:var(--text)}
+    .logo {display:block;background:url(logo.png) center/contain no-repeat;aspect-ratio:209/247}
+    .authart {display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;padding:40px;text-align:center}
+    .authart .logo {width:min(250px,55%)}
+    .authart p {font:400 30px/1.2 var(--serif);color:var(--gold)}
+    .authform {background:var(--panel);display:flex;flex-direction:column;padding:48px 56px}
+    .authform .top {display:flex;align-items:center;gap:12px;font:400 36px/1 var(--serif);color:var(--gold)}
+    .authform .top .logo {width:34px;background-image:url(logo-sm.png)}
+    .authform form {margin:auto 0;align-self:center;width:min(100%,400px);display:grid;gap:14px}
+    .authform input {background:#161619;border:1px solid var(--accent);border-radius:12px;padding:14px 16px}
+    .authform input::placeholder {color:var(--gold);opacity:.85}
+    .authform .forgot {justify-self:end;color:var(--gold);font-size:12px}
+    .authform .btn.primary {min-height:46px;font-size:15px;font-weight:600;border-radius:12px}
+    .logo-mask {flex:none;display:block;width:28px;aspect-ratio:209/247;background:#cda668;
+      -webkit-mask:url(logo-sm.png) center/contain no-repeat;mask:url(logo-sm.png) center/contain no-repeat}
+    :root[data-theme="light"] .logo-mask {background:#8a5a1f}
+    .sr {position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+    @media(max-width:800px){
+      #auth {grid-template-columns:1fr;grid-template-rows:auto 1fr}
+      .authart {padding:32px 24px 20px;gap:14px}
+      .authart .logo {width:110px}
+      .authart p {font-size:22px}
+      .authform {padding:32px 24px}
+    }
     .tools,.actions,.chips {display:flex;align-items:center;gap:7px;flex-wrap:wrap}
     .list {display:flex;flex-direction:column;background:var(--panel);border-right:1px solid var(--line);overflow:hidden}
     .listhead {display:grid;gap:12px;padding:18px 14px 10px}
@@ -186,27 +220,28 @@
 
 <div id="boot" class="center">Preparando Kárdex…</div>
 
-<main id="auth" class="center" hidden>
-  <div class="authbox">
-    <div class="brand"><span class="mark"></span>Kárdex</div>
-    <h1>Lo que sabes,<br><i>siempre a mano.</i></h1>
-    <p class="muted">Tu documentación de soporte y tus estudios en un solo lugar.</p>
-    <form id="login" class="stack">
-      <label class="field"><span>Email</span>
-        <input id="email" type="email" required autocomplete="username">
-      </label>
-      <label class="field"><span>Contraseña</span>
-        <input id="password" type="password" required autocomplete="current-password">
-      </label>
+<main id="auth" hidden>
+  <section class="authart">
+    <span class="logo" aria-hidden="true"></span>
+    <p>Tu plataforma, a tu ritmo.</p>
+  </section>
+  <section class="authform">
+    <div class="top"><span class="logo" role="img" aria-label="Logo de Kárdex"></span>Kárdex</div>
+    <form id="login">
+      <label class="sr" for="email">Correo</label>
+      <input id="email" type="email" placeholder="Correo" required autocomplete="username">
+      <label class="sr" for="password">Contraseña</label>
+      <input id="password" type="password" placeholder="Contraseña" required autocomplete="current-password">
+      <a id="forgot" class="forgot" href="#">¿Olvidaste tu contraseña?</a>
       <p id="loginErr" class="err" role="alert"></p>
       <button class="btn primary">Entrar</button>
     </form>
-  </div>
+  </section>
 </main>
 
 <div id="shell" class="shell" hidden>
   <aside aria-label="Navegación">
-    <div class="brand"><span class="mark"></span>Kárdex</div>
+    <div class="brand"><span class="logo-mask" role="img" aria-label="Logo de Kárdex"></span>Kárdex</div>
     <div class="switch" aria-label="Espacio">
       <button data-space="soporte">Soporte</button>
       <button data-space="uni">Universidad</button>
@@ -250,7 +285,7 @@
 <dialog id="editor" aria-labelledby="editorTitle">
   <div class="modalhead">
     <h2 id="editorTitle"></h2>
-    <button class="icon" data-act="cancel" aria-label="Cerrar">×</button>
+    <button class="closebtn" data-act="cancel"><span>Cerrar</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
   </div>
   <form id="editForm" class="stack">
     <div id="formFields" class="stack"></div>
@@ -263,7 +298,7 @@
 </dialog>
 
 <dialog id="settings" aria-labelledby="setTitle">
-  <div class="modalhead"><h2 id="setTitle">Configuración</h2><button class="icon" data-act="setclose" aria-label="Cerrar">×</button></div>
+  <div class="modalhead"><h2 id="setTitle">Configuración</h2><button class="closebtn" data-act="setclose"><span>Cerrar</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
   <div class="stack">
     <div class="sethead">
       <span id="setAv" class="avatar" aria-hidden="true"></span>
@@ -295,8 +330,18 @@
   </div>
 </dialog>
 
+<dialog id="recover" aria-labelledby="recTitle">
+  <div class="modalhead"><h2 id="recTitle">Nueva contraseña</h2><button type="button" class="closebtn" data-act="recclose"><span>Cerrar</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <form id="recForm" class="stack">
+    <label class="field"><span>Escribe tu nueva contraseña (mínimo 8 caracteres)</span>
+      <input id="recPass" type="password" minlength="8" required autocomplete="new-password"></label>
+    <p id="recErr" class="err" role="alert"></p>
+    <div class="actions end"><button class="btn primary">Guardar contraseña</button></div>
+  </form>
+</dialog>
+
 <dialog id="palette" aria-label="Buscar en el espacio activo">
-  <div class="modalhead"><h2>Buscar</h2><button class="icon" data-act="palclose" aria-label="Cerrar">×</button></div>
+  <div class="modalhead"><h2>Buscar</h2><button class="closebtn" data-act="palclose"><span>Cerrar</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
   <input id="pq" type="search" placeholder="Escribe un título, materia o aplicación…" aria-label="Buscar">
   <div id="results"></div>
 </dialog>
@@ -954,6 +999,7 @@ async function act(a){
   if(a==="navclose")return $("#shell").classList.remove("navopen");
   if(a==="settings"){fillSettings();return $("#settings").showModal()}
   if(a==="setclose")return $("#settings").close();
+  if(a==="recclose")return $("#recover").close();
   if(a==="back"){clearSelection();render();return}
   if(a==="cancel"){if(!S.writing)$("#editor").close();return}
   if(a==="palclose")return $("#palette").close();
@@ -1094,10 +1140,26 @@ document.addEventListener("keydown",e=>{
   if(a){e.preventDefault();run(a)}
 });
 
+// ───────────── Recuperar contraseña ─────────────
+$("#forgot").onclick=async e=>{
+  e.preventDefault();if(!db)return;
+  const email=$("#email").value.trim(),box=$("#loginErr");box.textContent="";
+  if(!email){box.textContent="Escribe tu correo arriba y vuelve a pulsar el enlace.";return}
+  const {error}=await db.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
+  if(error){box.textContent=errorMessage(error);return}
+  toast("Si el correo existe, recibirás un enlace para crear una contraseña nueva.");
+};
+$("#recForm").onsubmit=async e=>{
+  e.preventDefault();$("#recErr").textContent="";
+  const {error}=await db.auth.updateUser({password:$("#recPass").value});
+  if(error){$("#recErr").textContent=errorMessage(error);return}
+  $("#recPass").value="";$("#recover").close();toast("Contraseña actualizada.");
+};
+
 // ───────────── Inicio ─────────────
 setTheme(themePref());
 if(db){
-  db.auth.onAuthStateChange((_event,s)=>{setTimeout(()=>session(s?.user||null),0)});
+  db.auth.onAuthStateChange((ev,s)=>{setTimeout(()=>{session(s?.user||null);if(ev==="PASSWORD_RECOVERY")$("#recover").showModal()},0)});
 }else{
   $("#boot").textContent="No se pudo cargar Supabase. Revisa tu conexión y recarga la página.";
 }
