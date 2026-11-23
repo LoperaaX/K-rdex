@@ -199,7 +199,16 @@
     .cal {display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}
     .cal small,.day {text-align:center}
     .day {min-height:37px;border-radius:7px;padding:4px 0;border:1px solid var(--line)}
-    .day.event {color:var(--accent);font-weight:700;background:var(--card)}
+    .day.event {color:var(--accent);font-weight:700;border-color:var(--accent);
+      background:var(--card);background:color-mix(in srgb,var(--accent) 20%,var(--card))}
+    :root {--today:#8ab4ff;--on-today:#0b1530}
+    :root[data-theme="light"] {--today:#2f62d6;--on-today:#fff}
+    .day.today {color:var(--on-today);background:var(--today);border-color:var(--today);font-weight:700}
+    .day.today.event {box-shadow:inset 0 0 0 2px var(--accent)}
+    .sw {display:inline-block;width:10px;height:10px;border-radius:3px;margin:0 6px 0 14px;vertical-align:-1px}
+    .legend .sw:first-child {margin-left:0}
+    .sw.ev {background:var(--accent)}
+    .sw.td {background:var(--today)}
     .day.chosen {outline:2px solid var(--accent)}
     dialog {width:min(610px,94vw);max-height:90dvh;overflow:auto;color:var(--text);
       background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:var(--shadow)}
@@ -705,13 +714,13 @@ function calendar(){
   let cells=["L","M","X","J","V","S","D"].map(v=>`<small>${v}</small>`).join("")+"<span></span>".repeat(offset);
   for(let i=1;i<=last;i++){
     const date=prefix+"-"+pad(i),n=monthTasks.filter(r=>r.fecha===date).length;
-    cells+=`<button class="day ${n?"event":""} ${S.day===date?"chosen":""}" data-day="${date}"
-      aria-label="${esc(dateText(date))}, ${n} eventos">${i}${n?" •":""}</button>`;
+    cells+=`<button class="day ${n?"event":""} ${date===today()?"today":""} ${S.day===date?"chosen":""}" data-day="${date}"
+      aria-label="${esc(dateText(date))}${date===today()?" (hoy)":""}, ${n} eventos">${i}${n?" •":""}</button>`;
   }
   return `<div class="box"><div class="headrow">${action("prevmonth","‹","icon")}
     <b class="grow">${esc(month.toLocaleDateString("es",{month:"long",year:"numeric"}))}</b>
     ${action("nextmonth","›","icon")}</div><div class="cal">${cells}</div>
-    <small>• Hay entregas o evaluaciones. Pulsa un día para filtrar.</small></div>
+    <small class="legend"><span class="sw ev"></span>Con entregas o evaluaciones<span class="sw td"></span>Hoy · Pulsa un día para filtrar.</small></div>
     <div class="box"><div class="headrow"><p class="eyebrow grow">${S.day?dateText(S.day):"Agenda del mes"}</p>
     ${S.day?action("alldays","Ver mes"):""}</div>${scopedTasksList(shown)}</div>`;
 }
