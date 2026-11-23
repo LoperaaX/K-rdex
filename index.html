@@ -146,13 +146,27 @@
     .logo-mask {flex:none;display:block;width:28px;aspect-ratio:209/247;background:#cda668;
       -webkit-mask:url(logo-sm.png) center/contain no-repeat;mask:url(logo-sm.png) center/contain no-repeat}
     :root[data-theme="light"] .logo-mask {background:#8a5a1f}
+    #auth {background:
+      radial-gradient(circle 420px at 25% 48%,rgba(205,166,104,.22),transparent),
+      radial-gradient(circle 560px at 100% 0,rgba(205,166,104,.20),transparent),
+      linear-gradient(90deg,var(--bg) 36%,var(--panel) 64%)}
+    .authform {background:transparent}
+    .authart .logo {filter:drop-shadow(0 0 26px rgba(205,166,104,.30))}
+    #auth {position:relative}
+    #auth::after {content:"";position:absolute;top:0;bottom:0;left:50%;width:1px;pointer-events:none; /* authline */
+      background:linear-gradient(180deg,transparent,rgba(205,166,104,.38) 28%,rgba(205,166,104,.38) 72%,transparent);
+      box-shadow:0 0 22px 8px rgba(205,166,104,.10)}
     .sr {position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
     @media(max-width:800px){
-      #auth {grid-template-columns:1fr;grid-template-rows:auto 1fr}
+      #auth {grid-template-columns:1fr;grid-template-rows:auto 1fr;background:
+        radial-gradient(circle 260px at 50% 12%,rgba(205,166,104,.22),transparent),
+        radial-gradient(circle 320px at 100% 0,rgba(205,166,104,.18),transparent),
+        linear-gradient(180deg,var(--bg) 24%,var(--panel) 44%)}
       .authart {padding:32px 24px 20px;gap:14px}
       .authart .logo {width:110px}
       .authart p {font-size:22px}
       .authform {padding:32px 24px}
+      #auth::after {display:none}
     }
     .tools,.actions,.chips {display:flex;align-items:center;gap:7px;flex-wrap:wrap}
     .list {display:flex;flex-direction:column;background:var(--panel);border-right:1px solid var(--line);overflow:hidden}
