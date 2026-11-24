@@ -273,7 +273,7 @@
     .step {transition:background-color .15s ease}
     .step:has(input:checked) {animation:stepdone .3s ease}
     @keyframes stepdone {from{background-color:color-mix(in srgb,var(--accent) 18%,transparent)} to{background-color:transparent}}
-    .semgrp+.semgrp {margin-top:4px}
+    .semgrp+.semgrp {margin-top:4px;padding-top:12px;border-top:1px solid var(--line)}
     .semhead {display:flex;align-items:center;gap:7px;width:100%;padding:7px 9px;border-radius:8px;color:var(--muted)}
     .semhead:hover {color:var(--text)}
     .semhead .chev {flex:none;transition:transform .15s ease}
@@ -538,7 +538,7 @@ function changeView(v){
 }
 function openRecord(k,id){
   if(!find(k,id))return;
-  if(k==="materia"){S.group=id;changeView("resumen");return}
+  if(k==="materia"){S.group=id;openSemFor(id);changeView("resumen");return}
   clearSelection(); S.selected={k,id};
   $("#shell").classList.remove("navopen"); $("#shell").classList.add("reading");
   render(); $("#detail").scrollTop=0;
@@ -624,6 +624,8 @@ function navButton(attr,value,label,on,count=""){
   return `<button class="nav ${on?"on":""}" data-${attr}="${esc(value)}" aria-pressed="${on}">
     <span>${esc(label)}</span><small>${esc(count)}</small></button>`;
 }
+function semKeyOf(id){return find("materia",id)?.semestre?.trim()||"Sin semestre"}
+function openSemFor(id){if(id)S.semOpen.add(semKeyOf(id))}
 function semGroups(){
   const map=new Map();
   for(const m of S.data.materia){
@@ -641,7 +643,7 @@ function semesterGroupsHtml(){
   if(!groups.length)return `<p class="empty">Aún no hay elementos.</p>`;
   if(!S.semOpen.size)S.semOpen.add(groups[0][0]);
   return groups.map(([sem,items])=>{
-    const open=S.semOpen.has(sem)||items.some(m=>uid(m.id)===uid(S.group));
+    const open=S.semOpen.has(sem);
     return `<div class="semgrp">
       <button type="button" class="semhead" data-semtoggle="${esc(sem)}" aria-expanded="${open}">
         <svg class="chev" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
@@ -1113,7 +1115,7 @@ form.onsubmit=async e=>{
     }else{
       const data=await saveRow(k,id,v);if(epoch!==S.epoch)return;
       upsertLocal(k,data);resetFilters();
-      if(k==="materia"){S.group=uid(data.id);S.view="resumen"}
+      if(k==="materia"){S.group=uid(data.id);openSemFor(S.group);S.view="resumen"}
       else{
         if(k==="soporte"){S.view=data.tipo;S.steps.delete(uid(data.id))}
         else{S.view=k==="clase"?"clase":data.tipo;S.group=data.materia_id}
@@ -1289,7 +1291,7 @@ document.addEventListener("click",e=>{
     renderSide();return;
   }
   if("group" in d){
-    S.group=uid(S.group)===uid(d.group)?"":d.group;changeView(isUni()?"resumen":S.view);return;
+    S.group=uid(S.group)===uid(d.group)?"":d.group;openSemFor(S.group);changeView(isUni()?"resumen":S.view);return;
   }
   if("chip" in d){S.chip=d.chip;renderList();return}
   if(d.day){S.day=S.day===d.day?"":d.day;renderDetail();return}
