@@ -39,6 +39,8 @@
     }
     :root[data-space="uni"] {--accent:#9bd7c0; --on-accent:#10271e}
     :root[data-space="uni"][data-theme="light"] {--accent:#21694f; --on-accent:#fff}
+    :root[data-space="personal"] {--accent:#b38bdb; --on-accent:#1f1330}
+    :root[data-space="personal"][data-theme="light"] {--accent:#6b3fa0; --on-accent:#fff}
     * {box-sizing:border-box}
     [hidden] {display:none!important}
     body {margin:0;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5}
@@ -83,7 +85,7 @@
     aside,.list,.detail {min-height:0;min-width:0;overflow:auto}
     aside {display:flex;flex-direction:column;padding:18px 12px;gap:14px;border-right:1px solid var(--line)}
     aside .brand {padding:0 7px}
-    .switch {display:grid;grid-template-columns:1fr 1fr;padding:3px;border:1px solid var(--line);border-radius:10px}
+    .switch {display:grid;grid-template-columns:repeat(3,1fr);padding:3px;border:1px solid var(--line);border-radius:10px}
     .switch button {padding:7px 1px;text-align:center;font-size:12px;border-radius:7px;color:var(--muted)}
     .switch [aria-pressed="true"] {background:var(--accent);color:var(--on-accent);font-weight:600}
     .nav {display:flex;justify-content:space-between;gap:8px;align-items:center;width:100%;
@@ -333,6 +335,7 @@
     <div class="switch" aria-label="Espacio">
       <button data-space="soporte">Soporte</button>
       <button data-space="uni">Universidad</button>
+      <button data-space="personal">Personal</button>
     </div>
     <button class="btn" data-act="search">Buscar… <small>Ctrl / ⌘ K</small></button>
     <nav id="nav"></nav>
@@ -449,7 +452,7 @@ const root = document.documentElement;
 
 const table = {
   soporte:"entradas", materia:"kx_materias",
-  clase:"kx_clases", tarea:"kx_actividades"
+  clase:"kx_clases", tarea:"kx_actividades", personal:"kx_personal"
 };
 const types = {plantilla:"Plantillas", proceso:"Procesos", nota:"Aprendizajes"};
 const singular = {plantilla:"Plantilla", proceso:"Proceso", nota:"Aprendizaje"};
@@ -460,7 +463,7 @@ const local = {
   set(k,v){try{localStorage.setItem(k,v)}catch{}}
 };
 
-const emptyData = () => ({soporte:[], materia:[], clase:[], tarea:[]});
+const emptyData = () => ({soporte:[], materia:[], clase:[], tarea:[], personal:[]});
 const S = {
   user:null, data:emptyData(), space:"soporte", view:"all", semOpen:new Set(),
   group:"", chip:"", q:"", selected:null, variables:new Map(), steps:new Map(),
@@ -474,6 +477,7 @@ const uid = v => String(v ?? "");
 const find = (k,id) => S.data[k].find(x => uid(x.id)===uid(id));
 const current = () => S.selected && find(S.selected.k,S.selected.id);
 const isUni = () => S.space==="uni";
+const isPersonal = () => S.space==="personal";
 const subject = id => find("materia",id)?.nombre || "Materia";
 const unique = a => [...new Set(a.filter(Boolean))].sort((x,y)=>x.localeCompare(y,"es"));
 const displayName = () => S.user?.user_metadata?.nombre || S.user?.email?.split("@")[0] || "Mi cuenta";
@@ -527,7 +531,7 @@ function resetFilters(){
   clearSelection(); S.group=""; S.chip=""; S.q=""; S.day=""; $("#q").value="";
 }
 function switchSpace(space){
-  resetFilters(); S.space=space==="uni"?"uni":"soporte";
+  resetFilters(); S.space=space==="uni"?"uni":space==="personal"?"personal":"soporte";
   S.view=isUni()?"resumen":"all"; root.dataset.space=S.space;
   if(S.user)local.set("kx-space-"+S.user.id,S.space);
   $("#shell").classList.remove("navopen"); render();
@@ -546,16 +550,21 @@ function openRecord(k,id){
 function matches(k,r,q){
   const h=norm([titleOf(r),r.contenido,r.descripcion,plain(r.resumen),r.cierre,
     r.categoria,r.aplicacion,r.modulo,r.estado,r.tipo,r.fecha,
-    k==="soporte"?"":subject(r.materia_id)].filter(Boolean).join(" "));
+    (k==="soporte"||k==="personal")?"":subject(r.materia_id)].filter(Boolean).join(" "));
   return norm(q).trim().split(/\s+/).every(w=>h.includes(w));
 }
 function scoped(k){
   return S.data[k].filter(r=>!S.group||
-    (k==="soporte"?r.aplicacion===S.group:uid(r.materia_id)===uid(S.group)));
+    (k==="soporte"?r.aplicacion===S.group:k==="personal"?r.categoria===S.group:uid(r.materia_id)===uid(S.group)));
 }
 function entries(){
   let rows;
-  if(!isUni()){
+  if(isPersonal()){
+    rows=scoped("personal").filter(r=>S.view==="all"||(S.view==="fijadas"&&r.fijado))
+      .sort((a,b)=>Number(!!b.fijado)-Number(!!a.fijado)||
+        String(b.updated_at||"").localeCompare(String(a.updated_at||"")))
+      .map(r=>["personal",r]);
+  }else if(!isUni()){
     rows=scoped("soporte").filter(r=>S.view==="all"||
       (S.view==="fijadas"?r.fijado:r.tipo===S.view))
       .sort((a,b)=>Number(!!b.fijado)-Number(!!a.fijado)||
@@ -659,34 +668,38 @@ function renderSide(){
   const nm=displayName();$("#whoName").textContent=nm;$("#whoAv").textContent=(nm.trim()[0]||"?").toUpperCase();
   document.querySelectorAll("button[data-space]").forEach(b=>
     b.setAttribute("aria-pressed",b.dataset.space===S.space));
-  const views=isUni()?uniViews:{all:"Todo",fijadas:"Fijadas",...types};
+  const views=isUni()?uniViews:isPersonal()?{all:"Todo",fijadas:"Fijadas"}:{all:"Todo",fijadas:"Fijadas",...types};
   $("#nav").innerHTML=Object.entries(views).map(([v,t])=>navButton("view",v,t,S.view===v)).join("");
-  $("#groupTitle").textContent=isUni()?"Materias":"Aplicaciones";
+  $("#groupTitle").textContent=isUni()?"Materias":isPersonal()?"Categorías":"Aplicaciones";
   $("#addSubject").hidden=!isUni();
+  const groupSrc=isPersonal()?unique(S.data.personal.map(r=>r.categoria)):unique(S.data.soporte.map(r=>r.aplicacion));
   $("#groups").innerHTML=isUni()?semesterGroupsHtml():
-    (unique(S.data.soporte.map(r=>r.aplicacion)).map(x=>
-      navButton("group",x,x,S.group===x,S.group===x?"×":"")).join("")||
+    (groupSrc.map(x=>navButton("group",x,x,S.group===x,S.group===x?"×":"")).join("")||
     `<p class="empty">Aún no hay elementos.</p>`);
 }
 function rowHtml(k,r){
   const meta=k==="soporte"?`${r.aplicacion} · ${singular[r.tipo]||"Entrada"}`:
+    k==="personal"?(r.categoria||"Personal"):
     k==="materia"?"Materia":`${subject(r.materia_id)} · ${dateText(r.fecha)}`;
-  const desc=k==="soporte"?r.descripcion||r.contenido:k==="clase"?r.modulo||plain(r.resumen):
+  const desc=k==="soporte"?r.descripcion||r.contenido:k==="personal"?r.contenido:k==="clase"?r.modulo||plain(r.resumen):
     k==="materia"?r.semestre:states[r.estado];
   const selected=S.selected?.k===k&&uid(S.selected.id)===uid(r.id);
   return `<button class="row ${selected?"on":""}" data-open="${k}" data-id="${esc(r.id)}">
     <small>${esc(meta)}</small><b>${r.fijado?"◆ ":""}${esc(titleOf(r))}</b>
     <span class="snip">${esc(desc||"")}</span></button>`;
 }
-function relevantErrors(){return Object.keys(S.errors).filter(k=>isUni()?k!=="soporte":k==="soporte")}
+function relevantErrors(){
+  return Object.keys(S.errors).filter(k=>
+    isPersonal()?k==="personal":isUni()?(k!=="soporte"&&k!=="personal"):k==="soporte");
+}
 function renderList(){
-  const views=isUni()?uniViews:{all:"Todo",fijadas:"Fijadas",...types};
+  const views=isUni()?uniViews:isPersonal()?{all:"Todo",fijadas:"Fijadas"}:{all:"Todo",fijadas:"Fijadas",...types};
   $("#listTitle").textContent=views[S.view]||"Entradas";
   $("#newBtn").textContent=!isUni()?"+ Nueva entrada":
     S.view==="calendario"||S.view==="actividad"?"+ Nueva actividad":
     S.view==="evaluacion"?"+ Nueva evaluación":"+ Nueva clase";
-  const k=!isUni()?"soporte":S.view==="clase"?"clase":"tarea";
-  let chips=k==="tarea"?Object.entries(states):unique(scoped(k).filter(r=>
+  const k=isPersonal()?"personal":!isUni()?"soporte":S.view==="clase"?"clase":"tarea";
+  let chips=k==="personal"?[]:k==="tarea"?Object.entries(states):unique(scoped(k).filter(r=>
     k!=="soporte"||S.view==="all"||(S.view==="fijadas"?r.fijado:r.tipo===S.view)
   ).map(r=>k==="clase"?r.modulo:r.categoria)).map(v=>[v,v]);
   if(!chips.some(([v])=>v===S.chip))S.chip="";
@@ -769,6 +782,12 @@ function supportDetail(r){
   if(r.contenido)html+=`<div>${action("copy","Copiar "+(r.tipo==="proceso"?"pasos":"nota"))}</div>`;
   if(r.cierre)html+=`<div class="box"><p class="eyebrow">Cierre del ticket</p>
     <div class="doc">${esc(r.cierre)}</div><div>${action("copyend","Copiar cierre")}</div></div>`;
+  return html;
+}
+function personalDetail(r){
+  let html=`<div class="box doc">${prose(r.contenido)||"Sin notas."}</div>`;
+  html+=extLink(r.enlace_url,"Abrir enlace");
+  if(r.contenido)html+=`<div>${action("copy","Copiar notas")}</div>`;
   return html;
 }
 async function copyText(text){
@@ -873,6 +892,12 @@ function renderDetail(){
   if(!r){
     if(isUni()){
       html+=S.view==="calendario"?`<p class="eyebrow">${S.group?esc(subject(S.group)):"Universidad"}</p><h1>Calendario</h1>${calendar()}`:uniHome();
+    }else if(isPersonal()){
+      const total=S.data.personal.length,cats=unique(S.data.personal.map(r=>r.categoria)).length;
+      html+=`<p class="eyebrow">Personal</p><h1>Hola, <i>${esc(displayName())}</i>.</h1>
+      <p class="muted">Guarda enlaces y notas tuyas, organizadas por categoría — por ejemplo, repuestos de tu moto.</p>
+      <div class="stats"><div class="stat"><b>${total}</b><span>Entradas</span></div><div class="stat"><b>${cats}</b><span>Categorías</span></div></div>
+      <div class="box"><p class="eyebrow">Atajos</p><p class="muted">Ctrl / ⌘ K: buscar · N: nueva · /: filtrar · E: editar · C: copiar · P: fijar</p></div>`;
     }else{
       html+=`<p class="eyebrow">Soporte técnico</p><h1>Hola, <i>${esc(displayName())}</i>.</h1>
       <p class="muted">Abre una entrada o busca por aplicación, título o contenido.</p>
@@ -881,12 +906,13 @@ function renderDetail(){
     }
   }else{
     const meta=k==="soporte"?[singular[r.tipo],r.aplicacion,r.categoria]:
+      k==="personal"?[r.categoria]:
       [k==="clase"?"Clase":r.tipo==="evaluacion"?"Evaluación":"Actividad",subject(r.materia_id),dateText(r.fecha),r.modulo];
     html+=`<button id="back" class="btn" data-act="back">← Volver</button>
       <div class="chips">${meta.filter(Boolean).map(t=>`<span class="pill">${esc(t)}</span>`).join("")}</div>
       <h1>${esc(titleOf(r))}</h1><div class="actions">${action("edit","Editar")}
-      ${k==="soporte"?action("pin",r.fijado?"Desfijar":"Fijar"):""}${action("delete","Borrar","btn danger")}</div>
-      ${k==="soporte"?supportDetail(r):academicDetail(k,r)}`;
+      ${(k==="soporte"||k==="personal")?action("pin",r.fijado?"Desfijar":"Fijar"):""}${action("delete","Borrar","btn danger")}</div>
+      ${k==="personal"?personalDetail(r):k==="soporte"?supportDetail(r):academicDetail(k,r)}`;
   }
   $("#detail").innerHTML=`<div class="paper">${dash?`<div class="actions">${mobileMenu}</div>`:""}${loadAlert()}${html}</div>`;
 }
@@ -1023,6 +1049,13 @@ function edit(k,r=null,preset={}){
           option(x.id,x.aplicacion+" · "+x.titulo,r?.plantilla_ref)).join(""))}</div>`+
       area("contenido","Contenido",r?.contenido,'rows="7"')+
       `<small id="supportHint"></small>`+area("cierre","Cierre del ticket · opcional",r?.cierre,'maxlength="500"');
+  }else if(k==="personal"){
+    title=r?"Editar entrada":"Nueva entrada personal";
+    html=`<div class="grid2">${field("categoria","Categoría · opcional",r?.categoria??S.group,"text",'maxlength="80" list="persCatList"')}
+      ${field("titulo","Título",r?.titulo,"text",'required maxlength="200"')}</div>
+      <datalist id="persCatList">${unique(S.data.personal.map(a=>a.categoria)).map(v=>option(v,v)).join("")}</datalist>`+
+      area("contenido","Notas",r?.contenido,'rows="7"')+
+      field("enlace_url","Enlace · opcional",r?.enlace_url,"url");
   }else{
     const mid=r?.materia_id||preset.materia_id||S.group||S.data.materia[0].id;
     const subj=selectField("materia_id","Materia",S.data.materia.map(m=>option(m.id,
@@ -1079,7 +1112,7 @@ form.addEventListener("change",e=>{if(["materia_id","tipo"].includes(e.target.na
 function values(){
   if(S.edit?.k==="clase")form.elements.resumen.value=rtValue();
   const d=Object.fromEntries([...new FormData(form)].map(([k,v])=>[k,String(v).trim()]));
-  for(const k of ["manual_url","archivo_url"]){
+  for(const k of ["manual_url","archivo_url","enlace_url"]){
     if(d[k]&&!httpsUrl(d[k]))throw Error("El enlace debe ser una dirección HTTPS válida.");
   }
   for(const k of ["nombre","titulo","aplicacion"]){
@@ -1090,6 +1123,8 @@ function values(){
   if(k==="materia")return {nombre:d.nombre,semestre:d.semestre||null};
   if(k==="soporte")return {...d,categoria:d.categoria||null,cierre:d.cierre||null,
     manual_url:d.manual_url||null,descripcion:d.descripcion||null,plantilla_ref:d.plantilla_ref||null};
+  if(k==="personal")return {categoria:d.categoria||null,titulo:d.titulo,
+    contenido:d.contenido||null,enlace_url:d.enlace_url||null};
   if(k==="clase")return {...d,modulo:d.modulo||null,archivo_url:d.archivo_url||null};
   return {...d,clase_id:d.clase_id||null,fecha:d.fecha||null,
     peso:d.peso?Number(d.peso):null,archivo_url:d.archivo_url||null};
@@ -1118,6 +1153,7 @@ form.onsubmit=async e=>{
       if(k==="materia"){S.group=uid(data.id);openSemFor(S.group);S.view="resumen"}
       else{
         if(k==="soporte"){S.view=data.tipo;S.steps.delete(uid(data.id))}
+        else if(k==="personal"){S.view="all"}
         else{S.view=k==="clase"?"clase":data.tipo;S.group=data.materia_id}
         S.selected={k,id:uid(data.id)};$("#shell").classList.add("reading");
       }
@@ -1155,11 +1191,12 @@ function palette(){
   $("#pq").value="";renderResults();$("#palette").showModal();$("#pq").focus();
 }
 function renderResults(){
-  const q=$("#pq").value,keys=isUni()?["materia","clase","tarea"]:["soporte"];
+  const q=$("#pq").value,keys=isPersonal()?["personal"]:isUni()?["materia","clase","tarea"]:["soporte"];
   const results=keys.flatMap(k=>S.data[k].filter(r=>matches(k,r,q)).map(r=>[k,r])).slice(0,60);
   $("#results").innerHTML=results.map(([k,r])=>rowHtml(k,r)).join("")||`<p class="empty">Sin resultados.</p>`;
 }
 function newEntry(){
+  if(isPersonal())return edit("personal");
   if(!isUni())return edit("soporte");
   if(S.view==="actividad"||S.view==="evaluacion")return edit("tarea",null,{tipo:S.view});
   if(S.view==="calendario")return edit("tarea");
@@ -1168,7 +1205,7 @@ function newEntry(){
 function exportData(){
   if(S.loading||Object.keys(S.errors).length)return toast("Carga todos los datos antes de exportar.");
   const data={version:3,fecha:today(),entradas:S.data.soporte,kx_materias:S.data.materia,
-    kx_clases:S.data.clase,kx_actividades:S.data.tarea};
+    kx_clases:S.data.clase,kx_actividades:S.data.tarea,kx_personal:S.data.personal};
   const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:"application/json"}));
   const a=document.createElement("a");a.href=url;a.download=`kardex-${today()}.json`;
   document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
@@ -1194,7 +1231,7 @@ async function importData(file){
   try{d=JSON.parse(await file.text())}catch{throw Error("El archivo no es un JSON válido.")}
   if(d?.version===2)d={version:3,entradas:d.soporte,kx_materias:d.materia,kx_clases:d.clase,kx_actividades:d.tarea};
   if(d?.version!==3)throw Error("Formato no reconocido. Usa un archivo exportado desde Kárdex.");
-  const order=["kx_materias","kx_clases","kx_actividades","entradas"];
+  const order=["kx_materias","kx_clases","kx_actividades","entradas","kx_personal"];
   const total=order.reduce((n,t)=>n+(Array.isArray(d[t])?d[t].length:0),0);
   if(!total)throw Error("El archivo no contiene registros.");
   if(!confirm(`Se importarán ${total} registros. Los que tengan el mismo id se sobrescribirán. ¿Continuar?`))return;
@@ -1262,7 +1299,7 @@ async function act(a){
   if(a==="done")return updateCurrent({estado:"completada"});
   if(a==="edit")return edit(S.selected.k,r);
   if(a==="delete")return removeCurrent();
-  if(a==="pin"&&S.selected.k==="soporte")return updateCurrent({fijado:!r.fijado});
+  if(a==="pin"&&(S.selected.k==="soporte"||S.selected.k==="personal"))return updateCurrent({fijado:!r.fijado});
   if(a==="fromclass"||a==="evalfromclass")return edit("tarea",null,{
     materia_id:r.materia_id,clase_id:r.id,tipo:a==="fromclass"?"actividad":"evaluacion"
   });
@@ -1298,7 +1335,7 @@ document.addEventListener("click",e=>{
   if(d.open){
     if($("#palette").open){
       $("#palette").close();resetFilters();
-      S.view=d.open==="soporte"?"all":d.open==="clase"?"clase":
+      S.view=(d.open==="soporte"||d.open==="personal")?"all":d.open==="clase"?"clase":
         d.open==="materia"?"resumen":find("tarea",d.id)?.tipo||"actividad";
     }
     openRecord(d.open,d.id);
