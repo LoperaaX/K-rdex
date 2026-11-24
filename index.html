@@ -273,6 +273,13 @@
     .step {transition:background-color .15s ease}
     .step:has(input:checked) {animation:stepdone .3s ease}
     @keyframes stepdone {from{background-color:color-mix(in srgb,var(--accent) 18%,transparent)} to{background-color:transparent}}
+    .semgrp+.semgrp {margin-top:4px}
+    .semhead {display:flex;align-items:center;gap:7px;width:100%;padding:7px 9px;border-radius:8px;color:var(--muted)}
+    .semhead:hover {color:var(--text)}
+    .semhead .chev {flex:none;transition:transform .15s ease}
+    .semhead[aria-expanded="true"] .chev {transform:rotate(90deg)}
+    .semhead small {font-size:11px}
+    .semlist {display:grid;padding-left:14px;border-left:1px solid var(--line);margin-left:9px}
     #toast {transition:opacity .2s ease,transform .2s ease}
     @media (prefers-reduced-motion: reduce) {
       *,*::before,*::after {transition:none!important;animation:none!important}
@@ -455,7 +462,7 @@ const local = {
 
 const emptyData = () => ({soporte:[], materia:[], clase:[], tarea:[]});
 const S = {
-  user:null, data:emptyData(), space:"soporte", view:"all",
+  user:null, data:emptyData(), space:"soporte", view:"all", semOpen:new Set(),
   group:"", chip:"", q:"", selected:null, variables:new Map(), steps:new Map(),
   month:new Date(), day:"", edit:null, loading:false, writing:false, errors:{}, epoch:0
 };
@@ -571,8 +578,9 @@ async function readAll(k){
   for(let start=0;;){
     const {data,error}=await db.from(table[k]).select("*").order("id").range(start,start+499);
     if(error)throw error;
-    if(!data.length)break;
-    rows.push(...data); start+=data.length;
+    rows.push(...data);
+    if(data.length<500)break;
+    start+=data.length;
   }
   return rows;
 }
@@ -616,6 +624,35 @@ function navButton(attr,value,label,on,count=""){
   return `<button class="nav ${on?"on":""}" data-${attr}="${esc(value)}" aria-pressed="${on}">
     <span>${esc(label)}</span><small>${esc(count)}</small></button>`;
 }
+function semGroups(){
+  const map=new Map();
+  for(const m of S.data.materia){
+    const k=m.semestre?.trim()||"Sin semestre";
+    if(!map.has(k))map.set(k,[]);
+    map.get(k).push(m);
+  }
+  const keys=[...map.keys()];
+  const dated=keys.filter(k=>k!=="Sin semestre").sort((a,b)=>b.localeCompare(a,"es",{numeric:true}));
+  const rest=keys.includes("Sin semestre")?["Sin semestre"]:[];
+  return [...dated,...rest].map(k=>[k,map.get(k).sort((a,b)=>a.nombre.localeCompare(b.nombre,"es"))]);
+}
+function semesterGroupsHtml(){
+  const groups=semGroups();
+  if(!groups.length)return `<p class="empty">Aún no hay elementos.</p>`;
+  if(!S.semOpen.size)S.semOpen.add(groups[0][0]);
+  return groups.map(([sem,items])=>{
+    const open=S.semOpen.has(sem)||items.some(m=>uid(m.id)===uid(S.group));
+    return `<div class="semgrp">
+      <button type="button" class="semhead" data-semtoggle="${esc(sem)}" aria-expanded="${open}">
+        <svg class="chev" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
+          stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+        <span class="grow">${esc(sem)}</span><small>${items.length}</small>
+      </button>
+      <div class="semlist" ${open?"":"hidden"}>${items.map(m=>
+        navButton("group",m.id,m.nombre,S.group===m.id,S.group===m.id?"×":"")).join("")}</div>
+    </div>`;
+  }).join("");
+}
 function renderSide(){
   const nm=displayName();$("#whoName").textContent=nm;$("#whoAv").textContent=(nm.trim()[0]||"?").toUpperCase();
   document.querySelectorAll("button[data-space]").forEach(b=>
@@ -624,12 +661,10 @@ function renderSide(){
   $("#nav").innerHTML=Object.entries(views).map(([v,t])=>navButton("view",v,t,S.view===v)).join("");
   $("#groupTitle").textContent=isUni()?"Materias":"Aplicaciones";
   $("#addSubject").hidden=!isUni();
-  const groups=isUni()?S.data.materia.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre,"es"))
-    .map(r=>[r.id,r.nombre+(r.semestre?" · "+r.semestre:"")]):
-    unique(S.data.soporte.map(r=>r.aplicacion)).map(x=>[x,x]);
-  $("#groups").innerHTML=groups.map(([id,name])=>
-    navButton("group",id,name,S.group===id,S.group===id?"×":"")).join("")||
-    `<p class="empty">Aún no hay elementos.</p>`;
+  $("#groups").innerHTML=isUni()?semesterGroupsHtml():
+    (unique(S.data.soporte.map(r=>r.aplicacion)).map(x=>
+      navButton("group",x,x,S.group===x,S.group===x?"×":"")).join("")||
+    `<p class="empty">Aún no hay elementos.</p>`);
 }
 function rowHtml(k,r){
   const meta=k==="soporte"?`${r.aplicacion} · ${singular[r.tipo]||"Entrada"}`:
@@ -758,7 +793,7 @@ function stats(items){
 }
 function scopedTasksList(tasks){
   return tasks.length?tasks.map(r=>keyBtn("tarea",r,
-    `${dateText(r.fecha)} · ${r.titulo} · ${states[r.estado]}`)).join(""):
+    `${dateText(r.fecha)} · ${r.titulo} · ${r.tipo==="evaluacion"?"Evaluación":"Actividad"} · ${states[r.estado]}`)).join(""):
     `<p class="muted">No hay actividades para mostrar.</p>`;
 }
 function calendar(){
@@ -1249,6 +1284,10 @@ document.addEventListener("click",e=>{
   if(d.act)return run(d.act);
   if(d.space)return switchSpace(d.space);
   if(d.view)return changeView(d.view);
+  if(d.semtoggle){
+    S.semOpen.has(d.semtoggle)?S.semOpen.delete(d.semtoggle):S.semOpen.add(d.semtoggle);
+    renderSide();return;
+  }
   if("group" in d){
     S.group=uid(S.group)===uid(d.group)?"":d.group;changeView(isUni()?"resumen":S.view);return;
   }
