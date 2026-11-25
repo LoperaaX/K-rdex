@@ -286,8 +286,15 @@
        paneles grandes (boxes/diálogos/stats), nunca en cada fila de la
        lista, para no repetir el costo de GPU en decenas de elementos. */
     :root[data-space="personal"] #shell {background:
-      radial-gradient(900px circle at 12% -12%, rgba(199,123,74,.10), transparent 60%),
-      radial-gradient(700px circle at 102% 108%, rgba(199,123,74,.07), transparent 60%)}
+      radial-gradient(700px circle at 12% -8%, rgba(221,140,90,.38), transparent 62%),
+      radial-gradient(620px circle at 104% 10%, rgba(179,95,47,.30), transparent 60%),
+      radial-gradient(640px circle at 96% 112%, rgba(221,140,90,.28), transparent 60%),
+      var(--bg)}
+    :root[data-space="personal"][data-theme="light"] #shell {background:
+      radial-gradient(700px circle at 12% -8%, rgba(221,140,90,.22), transparent 62%),
+      radial-gradient(620px circle at 104% 10%, rgba(179,95,47,.16), transparent 60%),
+      radial-gradient(640px circle at 96% 112%, rgba(221,140,90,.16), transparent 60%),
+      var(--bg)}
     :root[data-space="personal"] .box,
     :root[data-space="personal"] .stat,
     :root[data-space="personal"] dialog {
