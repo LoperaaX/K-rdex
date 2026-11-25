@@ -305,6 +305,32 @@
       background:color-mix(in srgb,var(--card) 80%,transparent)}
     .catdot {display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:-1px}
     .pill.tagpill {border-color:var(--accent);color:var(--accent);font-weight:600}
+    .bento {display:grid;grid-template-columns:1.3fr 1fr;gap:14px;align-items:stretch}
+    .bento>.stack {gap:14px}
+    @media(max-width:900px){.bento {grid-template-columns:1fr}}
+    .donutbox {align-content:start}
+    .donutwrap {position:relative;width:140px;height:140px;margin:10px auto}
+    .donutsvg {position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg)}
+    .donutsvg circle {transition:stroke-width .15s ease,stroke-dashoffset .4s ease}
+    .donutcenter {position:absolute;inset:0;display:grid;place-items:center;text-align:center;line-height:1.25}
+    .donutcenter b {font:28px var(--serif);color:var(--text)}
+    .donutcenter span {font-size:12px;color:var(--muted)}
+    .donutcenter small {font-size:11px;color:var(--accent)}
+    .donutlegend {display:grid;gap:6px;margin-top:6px}
+    .donutrow {display:flex;align-items:center;gap:8px;width:100%;padding:7px 9px;border-radius:9px;border:1px solid transparent}
+    .donutrow:hover {background:var(--card)}
+    .donutrow.on {border-color:var(--accent);background:var(--card)}
+    .donutrow small {color:var(--muted);font-size:11px}
+    .donutrow b {font-size:12px;min-width:20px;text-align:center;padding:1px 6px;border-radius:20px;background:var(--bg)}
+    .qslist {display:grid;gap:5px;margin:8px 0}
+    .qsrow {display:flex;align-items:center;gap:9px;width:100%;padding:7px 9px;border-radius:9px}
+    .qsrow:hover {background:var(--card)}
+    .qsrow.done span:last-child {text-decoration:line-through;color:var(--muted)}
+    .qsrow .chk {flex:none;width:16px;height:16px;border-radius:5px;border:1px solid var(--line);
+      display:grid;place-items:center;font-size:11px;color:var(--on-accent)}
+    .qsrow.done .chk {background:var(--accent);border-color:var(--accent)}
+    #qsForm {gap:8px}
+    #qsForm input {flex:1}
     #toast {transition:opacity .2s ease,transform .2s ease}
     @media (prefers-reduced-motion: reduce) {
       *,*::before,*::after {transition:none!important;animation:none!important}
@@ -933,6 +959,78 @@ function academicDetail(k,r){
     ${extLink(r.archivo_url,"Abrir archivo en OneDrive")}
     ${c?keyBtn("clase",c,"Ver clase de origen: "+c.titulo):""}</div>`;
 }
+function personalDonutHtml(){
+  const total=S.data.personal.length;
+  if(!total)return `<div class="box"><p class="eyebrow">Distribución personal</p>
+    <p class="muted">Crea tu primera entrada para ver la distribución por categoría.</p></div>`;
+  const cats=unique(S.data.personal.map(r=>r.categoria||"Sin categoría")).map(cat=>
+    ({cat,count:S.data.personal.filter(r=>(r.categoria||"Sin categoría")===cat).length}));
+  const rad=52,C=2*Math.PI*rad,gap=cats.length>1?8:0,usable=Math.max(C-gap*cats.length,0);
+  let off=0;
+  const segs=cats.map(({cat,count})=>{
+    const len=Math.max((count/total)*usable,4),dash=`${len} ${C-len}`,doff=-off;
+    off+=len+gap;
+    return `<circle cx="70" cy="70" r="${rad}" fill="none" stroke="${personalColor(cat)}"
+      stroke-width="${S.group===cat?15:12}" stroke-linecap="round"
+      stroke-dasharray="${dash}" stroke-dashoffset="${doff}"></circle>`;
+  }).join("");
+  const legend=cats.map(({cat,count})=>{
+    const pct=Math.round(100*count/total);
+    return `<button type="button" class="donutrow ${S.group===cat?"on":""}" data-group="${esc(cat)}">
+      <span class="catdot" style="background:${personalColor(cat)}"></span>
+      <span class="grow">${esc(cat)}</span><small>${pct}%</small><b>${count}</b></button>`;
+  }).join("");
+  return `<div class="box donutbox"><p class="eyebrow">Distribución personal</p>
+    <div class="donutwrap"><svg viewBox="0 0 140 140" class="donutsvg">
+      <circle cx="70" cy="70" r="${rad}" fill="none" stroke="var(--line)" stroke-width="12"></circle>${segs}</svg>
+      <div class="donutcenter"><b>${total}</b><span>${total===1?"Entrada":"Entradas"}</span><small>${cats.length} categorías</small></div>
+    </div><div class="donutlegend">${legend}</div></div>`;
+}
+function motoWidgetHtml(){
+  const m=S.data.moto[0];
+  if(!m)return `<div class="box"><p class="eyebrow">Garaje moto</p>
+    <p class="muted">Registra el kilometraje de tu moto para ver aquí cuánto falta para el próximo mantenimiento.</p>
+    <div>${action("moto","+ Registrar kilometraje","btn primary")}</div></div>`;
+  const pct=m.km_objetivo?Math.min(100,Math.round(100*(m.km_actual||0)/m.km_objetivo)):0;
+  const falta=(m.km_objetivo!=null&&m.km_actual!=null)?Math.max(0,m.km_objetivo-m.km_actual):null;
+  return `<div class="box"><div class="headrow"><p class="eyebrow grow">Garaje moto</p>${action("moto","Editar")}</div>
+    <div class="stack"><div class="headrow"><span class="muted">Kilometraje</span>
+    <b>${m.km_actual??"—"}${m.km_objetivo?` / ${m.km_objetivo} km`:""}</b></div>
+    <progress value="${pct}" max="100"></progress>
+    ${falta!=null?`<small class="muted">Faltan ~${falta} km para el próximo servicio.</small>`:""}
+    ${m.nota?`<small class="muted">${esc(m.nota)}</small>`:""}</div></div>`;
+}
+function quickShopHtml(){
+  const items=S.data.compras,pend=items.filter(i=>!i.hecho).length;
+  return `<div class="box"><div class="headrow"><p class="eyebrow grow">Por comprar</p><span class="pill">${pend} pend.</span></div>
+    <div class="qslist">${items.length?items.map(i=>
+      `<button type="button" class="qsrow ${i.hecho?"done":""}" data-compra="${esc(i.id)}">
+        <span class="chk" aria-hidden="true">${i.hecho?"✓":""}</span><span>${esc(i.texto)}</span></button>`).join(""):
+      `<p class="muted">Sin pendientes.</p>`}</div>
+    <form id="qsForm" class="headrow"><input id="qsInput" placeholder="Añadir algo para comprar…" autocomplete="off">
+    <button class="btn primary">+</button></form></div>`;
+}
+async function addCompra(texto){
+  if(!texto||!texto.trim())return;
+  const epoch=S.epoch;
+  const {data,error}=await db.from(table.compras).insert({texto:texto.trim()}).select().single();
+  if(error)return toast(errorMessage(error));
+  if(epoch!==S.epoch)return;
+  S.data.compras.unshift(data);renderDetail();
+}
+async function toggleCompra(id){
+  const item=S.data.compras.find(x=>uid(x.id)===uid(id));
+  if(!item||S.writing)return;
+  const epoch=S.epoch;S.writing=true;
+  try{
+    const {data,error}=await db.from(table.compras).update({hecho:!item.hecho}).eq("id",id).select().single();
+    if(error)throw error;
+    if(epoch!==S.epoch)return;
+    const i=S.data.compras.findIndex(x=>uid(x.id)===uid(id));
+    if(i>=0)S.data.compras[i]=data;
+  }catch(e){toast(errorMessage(e))}
+  finally{S.writing=false;renderDetail()}
+}
 function renderDetail(){
   const r=current(),k=S.selected?.k;
   const dash=isUni()&&["resumen","calendario"].includes(S.view)&&!r;
@@ -943,10 +1041,9 @@ function renderDetail(){
     if(isUni()){
       html+=S.view==="calendario"?`<p class="eyebrow">${S.group?esc(subject(S.group)):"Universidad"}</p><h1>Calendario</h1>${calendar()}`:uniHome();
     }else if(isPersonal()){
-      const total=S.data.personal.length,cats=unique(S.data.personal.map(r=>r.categoria)).length;
       html+=`<p class="eyebrow">Personal</p><h1>Hola, <i>${esc(displayName())}</i>.</h1>
       <p class="muted">Guarda enlaces y notas tuyas, organizadas por categoría — por ejemplo, repuestos de tu moto.</p>
-      <div class="stats"><div class="stat"><b>${total}</b><span>Entradas</span></div><div class="stat"><b>${cats}</b><span>Categorías</span></div></div>
+      <div class="bento">${personalDonutHtml()}<div class="stack">${motoWidgetHtml()}${quickShopHtml()}</div></div>
       <div class="box"><p class="eyebrow">Atajos</p><p class="muted">Ctrl / ⌘ K: buscar · N: nueva · /: filtrar · E: editar · C: copiar · P: fijar</p></div>`;
     }else{
       html+=`<p class="eyebrow">Soporte técnico</p><h1>Hola, <i>${esc(displayName())}</i>.</h1>
@@ -965,6 +1062,8 @@ function renderDetail(){
       ${k==="personal"?personalDetail(r):k==="soporte"?supportDetail(r):academicDetail(k,r)}`;
   }
   $("#detail").innerHTML=`<div class="paper">${dash?`<div class="actions">${mobileMenu}</div>`:""}${loadAlert()}${html}</div>`;
+  const qf=$("#qsForm");
+  if(qf)qf.onsubmit=e=>{e.preventDefault();const v=$("#qsInput").value;$("#qsInput").value="";addCompra(v)};
 }
 
 /*RT-START*/
@@ -1108,6 +1207,11 @@ function edit(k,r=null,preset={}){
       area("contenido","Notas",r?.contenido,'rows="6"')+
       area("pasos","Lista de pasos · opcional, uno por línea",personalSteps(r).map(p=>p.text).join("\n"))+
       field("enlace_url","Enlace · opcional",r?.enlace_url,"url");
+  }else if(k==="moto"){
+    title="Garaje moto";
+    html=`<div class="grid2">${field("km_actual","Kilometraje actual",r?.km_actual,"number",'min="0" step="1"')}
+      ${field("km_objetivo","Próximo mantenimiento (km)",r?.km_objetivo,"number",'min="0" step="1"')}</div>`+
+      field("nota","Nota · opcional",r?.nota,"text",'maxlength="140" placeholder="Revisar cadena"');
   }else{
     const mid=r?.materia_id||preset.materia_id||S.group||S.data.materia[0].id;
     const subj=selectField("materia_id","Materia",S.data.materia.map(m=>option(m.id,
@@ -1181,6 +1285,8 @@ function values(){
       enlace_url:d.enlace_url||null,dato_clave:d.dato_clave||null,
       pasos:mergeSteps(orig?personalSteps(orig):[],d.pasos)};
   }
+  if(k==="moto")return {km_actual:d.km_actual?Number(d.km_actual):null,
+    km_objetivo:d.km_objetivo?Number(d.km_objetivo):null,nota:d.nota||null};
   if(k==="clase")return {...d,modulo:d.modulo||null,archivo_url:d.archivo_url||null};
   return {...d,clase_id:d.clase_id||null,fecha:d.fecha||null,
     peso:d.peso?Number(d.peso):null,archivo_url:d.archivo_url||null};
@@ -1205,13 +1311,18 @@ form.onsubmit=async e=>{
       if(epoch!==S.epoch)return;S.user=data.user;
     }else{
       const data=await saveRow(k,id,v);if(epoch!==S.epoch)return;
-      upsertLocal(k,data);resetFilters();
+      upsertLocal(k,data);
+      if(k==="moto"){
+        /* solo refresca el widget; sin selección ni reinicio de filtros */
+      }else{
+      resetFilters();
       if(k==="materia"){S.group=uid(data.id);openSemFor(S.group);S.view="resumen"}
       else{
         if(k==="soporte"){S.view=data.tipo;S.steps.delete(uid(data.id))}
         else if(k==="personal"){S.view="all"}
         else{S.view=k==="clase"?"clase":data.tipo;S.group=data.materia_id}
         S.selected={k,id:uid(data.id)};$("#shell").classList.add("reading");
+      }
       }
     }
     $("#editor").close();S.edit=null;render();toast("Cambios guardados.");
@@ -1324,6 +1435,7 @@ async function act(a){
   if(a==="name"){$("#settings").close();return edit("name")}
   if(a==="subject")return edit("materia");
   if(a==="editsubject")return edit("materia",find("materia",S.group));
+  if(a==="moto")return edit("moto",S.data.moto[0]||null);
   if(a==="new")return newEntry();
   if(a==="newclass")return edit("clase");
   if(a==="newtask"||a==="neweval")return edit("tarea",null,{tipo:a==="neweval"?"evaluacion":"actividad"});
@@ -1379,6 +1491,7 @@ document.addEventListener("click",e=>{
   if(d.act)return run(d.act);
   if(d.space)return switchSpace(d.space);
   if(d.view)return changeView(d.view);
+  if(d.compra){toggleCompra(d.compra);return}
   if(d.semtoggle){
     S.semOpen.has(d.semtoggle)?S.semOpen.delete(d.semtoggle):S.semOpen.add(d.semtoggle);
     renderSide();return;
