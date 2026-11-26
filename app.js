@@ -429,27 +429,17 @@ function uniHome(){
   const matter=S.group&&find("materia",S.group);
   const late=tasks.filter(r=>r.fecha&&r.fecha<today()&&r.estado!=="completada")
     .sort((a,b)=>a.fecha.localeCompare(b.fecha));
-  return `<p class="eyebrow">${matter?esc(matter.semestre||"Materia"):"Universidad"}</p>
-    <h1>${esc(matter?matter.nombre:"Mi universidad")}</h1>
-    <div class="actions">${action("newclass","Nueva clase","btn primary")}
-    ${action("newtask","Nueva actividad")}${action("neweval","Nueva evaluación")}
-    </div>
-    ${matter?`<div class="actions">${action("editsubject","Editar materia")}${action("delsubject","Borrar materia","btn danger")}</div>`:""}
-    ${stats([["clase","Clases",classes.length],["actividad","Actividades",tasks.filter(r=>r.tipo==="actividad").length],
-      ["evaluacion","Evaluaciones",tasks.filter(r=>r.tipo==="evaluacion").length]])}
-    <div class="box"><p class="eyebrow">Progreso de actividades y evaluaciones</p>
-    <progress max="${tasks.length||1}" value="${done}"></progress>
-    <small>${done} de ${tasks.length} completadas${tasks.length?" · "+Math.round(100*done/tasks.length)+"%":""}</small></div>
-    ${late.length?`<div class="box"><p class="eyebrow danger">Vencidas · ${late.length}</p>
-    ${scopedTasksList(late)}</div>`:""}
-    <div class="box"><p class="eyebrow">Próximas fechas</p>
-    ${scopedTasksList(tasks.filter(r=>r.fecha&&r.fecha>=today()&&r.estado!=="completada")
-      .sort((a,b)=>a.fecha.localeCompare(b.fecha)).slice(0,6))}
-    ${action("calendar","Abrir calendario")}</div>
-    <div class="box"><p class="eyebrow">Últimas clases</p>
-    ${classes.length?classes.sort((a,b)=>b.fecha.localeCompare(a.fecha)).slice(0,5)
-      .map(r=>keyBtn("clase",r,`${dateText(r.fecha)} · ${r.titulo}`)).join(""):
-      `<p class="muted">Crea una materia y guarda tu primera clase.</p>`}</div>`;
+  const upcoming=tasks.filter(r=>r.fecha&&r.fecha>=today()&&r.estado!=="completada").sort((a,b)=>a.fecha.localeCompare(b.fecha)).slice(0,6);
+  return `<div class="uni-home-v2"><header class="uni-hero"><div><p class="eyebrow">CAMPUS PERSONAL · ${matter?esc(matter.semestre||"MATERIA"):"TU ESPACIO ACADÉMICO"}</p>
+    <h1>${esc(matter?matter.nombre:"Mi universidad")}</h1><p class="uni-intro">${matter?"Material de clase, seguimiento y entregas de esta materia.":"Organiza tus materias, registra tus clases y mantén tus entregas bajo control."}</p></div>
+    <div class="uni-hero-mark" aria-hidden="true"><span>∑</span><small>APRENDER<br>· CRECER ·</small></div></header>
+    <div class="uni-actions"><div class="actions">${action("newclass","+ Nueva clase","btn primary")}${action("newtask","+ Actividad")}${action("neweval","+ Evaluación")}</div>
+    ${matter?`<div class="actions">${action("editsubject","Editar materia")}${action("delsubject","Borrar materia","btn danger")}</div>`:""}</div>
+    ${stats([["clase","Clases",classes.length],["actividad","Actividades",tasks.filter(r=>r.tipo==="actividad").length],["evaluacion","Evaluaciones",tasks.filter(r=>r.tipo==="evaluacion").length]])}
+    <div class="uni-progress"><div><p class="eyebrow">RITMO DE ESTUDIO</p><b>${done} <small>/ ${tasks.length} completadas</small></b></div><strong>${tasks.length?Math.round(100*done/tasks.length):0}%</strong><progress max="${tasks.length||1}" value="${done}"></progress></div>
+    <div class="uni-columns"><section class="uni-panel"><p class="eyebrow">AGENDA · PRÓXIMAS FECHAS</p>${scopedTasksList(upcoming)}${action("calendar","Ver calendario")}</section>
+    <section class="uni-panel"><p class="eyebrow">AULA · ÚLTIMAS CLASES</p>${classes.length?classes.sort((a,b)=>b.fecha.localeCompare(a.fecha)).slice(0,5).map(r=>keyBtn("clase",r,`${dateText(r.fecha)} · ${r.titulo}`)).join(""):`<p class="muted">Crea una materia y guarda tu primera clase.</p>`}</section></div>
+    ${late.length?`<div class="uni-overdue"><p class="eyebrow">ATENCIÓN · VENCIDAS · ${late.length}</p>${scopedTasksList(late)}</div>`:""}</div>`;
 }
 function academicDetail(k,r){
   if(k==="clase"){
@@ -558,10 +548,11 @@ function renderDetail(){
       const personalCount=S.data.personal.length, personalCats=unique(S.data.personal.map(r=>r.categoria||"Sin categoría")).length;
       html+=`<header class="personal-hero personal-hero-v2"><div class="personal-hero-copy"><div class="personal-hero-meta"><span class="personal-badge">ESPACIO PERSONAL</span><span class="personal-date">${new Date().toLocaleDateString("es-CO",{weekday:"long",day:"numeric",month:"long"})}</span></div><p class="personal-kicker">UN LUGAR PARA LO QUE IMPORTA</p><h1>Hola, <i>${esc(displayName())}</i>.</h1><p class="personal-intro">Ideas, proyectos, pendientes y pequeñas cosas que quiero tener presentes. Todo en un mismo lugar.</p><div class="personal-hero-stats"><div><b>${personalCount}</b><span>entradas guardadas</span></div><div><b>${personalCats}</b><span>categorías</span></div><div><b>${S.data.compras.filter(x=>!x.hecho).length}</b><span>pendientes de compra</span></div></div></div><div class="personal-hero-art" aria-hidden="true"><span class="hero-art-orbit hero-art-orbit-1"></span><span class="hero-art-orbit hero-art-orbit-2"></span><span class="hero-art-mark">K</span><span class="hero-art-caption">KÁRDEX<br>PERSONAL</span></div></header><section class="personal-widgets personal-widgets-v2"><div class="personal-section-label"><span>01 / TU UNIVERSO</span><p>Explora por categoría</p></div>${personalDonutHtml()}<div class="personal-widget-stack">${motoWidgetHtml()}${quickShopHtml()}</div></section><section class="personal-entries-head personal-entries-v2"><div class="personal-section-label"><span>02 / BIBLIOTECA PERSONAL</span><p>Lo que has ido guardando</p></div><div class="headrow"><h2>Tu colección</h2><span class="pill">${entries().length} registros</span><button class="btn primary" data-act="new">+ Crear entrada</button></div><input class="personal-search" type="search" placeholder="Buscar en tu espacio…" oninput="const q=this.value.toLowerCase();document.querySelectorAll('.personal-entry-grid .row').forEach(el=>el.hidden=!el.innerText.toLowerCase().includes(q))"></section><section class="personal-entry-grid personal-entry-grid-v2">${entries().map(([k,entry])=>rowHtml(k,entry)).join("")||`<div class="empty-card">Todavía no hay entradas. Guarda aquí algo que quieras recordar.</div>`}</section><section class="personal-shortcuts personal-shortcuts-v2"><span class="eyebrow">NAVEGACIÓN RÁPIDA</span><span>Ctrl / ⌘ K buscar · N crear · / filtrar · E editar · C copiar · P fijar</span></section>`;
     }else{
-      html+=`<p class="eyebrow">Soporte técnico</p><h1>Hola, <i>${esc(displayName())}</i>.</h1>
-      <p class="muted">Abre una entrada o busca por aplicación, título o contenido.</p>
-      ${stats(Object.entries(types).map(([k,t])=>[k,t,S.data.soporte.filter(r=>r.tipo===k).length]))}
-      <div class="box"><p class="eyebrow">Atajos</p><p class="muted">Ctrl / ⌘ K: buscar · N: nueva · /: filtrar · E: editar · C: copiar · Shift C: copiar cierre · P: fijar</p></div>`;
+      const supportCounts=Object.entries(types).map(([k,t])=>[k,t,S.data.soporte.filter(r=>r.tipo===k).length]);
+      html+=`<div class="support-home-v2"><header class="support-hero"><div><p class="eyebrow">SERVICE DESK · CENTRO DE CONOCIMIENTO</p><h1>Hola, <i>${esc(displayName())}</i>.</h1><p class="support-intro">Tu mesa de trabajo para documentar, consultar y resolver. Todo el conocimiento técnico, listo para cuando lo necesites.</p></div><div class="support-emblem" aria-hidden="true"><span>⌘</span><small>KNOWLEDGE<br>BASE</small></div></header>
+      <div class="support-quick"><div><b>${S.data.soporte.length}</b><span>recursos documentados</span></div><div><b>${S.data.soporte.filter(r=>r.fijado).length}</b><span>accesos fijados</span></div><div><b>${unique(S.data.soporte.map(r=>r.aplicacion)).length}</b><span>aplicaciones</span></div></div>
+      <div class="support-type-grid">${supportCounts.map(([k,t,n])=>`<button class="support-type" data-view="${k}"><span>${esc(t)}</span><b>${n}</b><small>Explorar recursos →</small></button>`).join("")}</div>
+      <div class="support-hint"><p class="eyebrow">FLUJO DE TRABAJO</p><p>Busca por aplicación, título o contenido. Usa plantillas para responder, procesos para seguir procedimientos y aprendizajes para conservar soluciones útiles.</p><small>Ctrl / ⌘ K buscar · N nueva entrada · E editar · C copiar · P fijar</small></div></div>`;
     }
   }else{
     const meta=k==="soporte"?[singular[r.tipo],r.aplicacion,r.categoria]:
