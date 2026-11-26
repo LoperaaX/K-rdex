@@ -477,11 +477,12 @@ function personalDonutHtml(){
   const rad=52,C=2*Math.PI*rad,gap=cats.length>1?8:0,usable=Math.max(C-gap*cats.length,0);
   let off=0;
   const segs=cats.map(({cat,count})=>{
-    const len=Math.max((count/total)*usable,4),dash=`${len} ${C-len}`,doff=-off;
+    const len=Math.max((count/total)*usable,4),dash=\`\${len} \${C-len}\`,doff=-off;
     off+=len+gap;
-    return `<circle cx="70" cy="70" r="${rad}" fill="none" stroke="${personalColor(cat)}"
-      stroke-width="${S.group===cat?15:12}" stroke-linecap="round"
-      stroke-dasharray="${dash}" stroke-dashoffset="${doff}"></circle>`;
+    return \`<circle class="donutsegment" data-group="\${esc(cat)}" role="button" tabindex="0"
+      aria-label="Filtrar categoría \${esc(cat)}, \${count} entradas" cx="70" cy="70" r="\${rad}"
+      fill="none" stroke="\${personalColor(cat)}" stroke-width="\${S.group===cat?15:12}"
+      stroke-linecap="round" stroke-dasharray="\${dash}" stroke-dashoffset="\${doff}"></circle>\`;
   }).join("");
   const legend=cats.map(({cat,count})=>{
     const pct=Math.round(100*count/total);
@@ -489,11 +490,15 @@ function personalDonutHtml(){
       <span class="catdot" style="background:${personalColor(cat)}"></span>
       <span class="grow">${esc(cat)}</span><small>${pct}%</small><b>${count}</b></button>`;
   }).join("");
-  return `<div class="box donutbox"><p class="eyebrow">Distribución personal</p>
-    <div class="donutwrap"><svg viewBox="0 0 140 140" class="donutsvg">
-      <circle cx="70" cy="70" r="${rad}" fill="none" stroke="var(--line)" stroke-width="12"></circle>${segs}</svg>
-      <div class="donutcenter"><b>${total}</b><span>${total===1?"Entrada":"Entradas"}</span><small>${cats.length} categorías</small></div>
-    </div><div class="donutlegend">${legend}</div></div>`;
+  const selected=S.group?cats.find(c=>c.cat===S.group):null;
+  const centerCount=selected?.count??total;
+  const centerLabel=selected?.cat??(total===1?"Entrada":"Entradas");
+  const centerSub=selected?"Filtrado":\`\${cats.length} categorías\`;
+  return \`<div class="box donutbox"><p class="eyebrow">Distribución personal</p>
+    <div class="donutwrap"><svg viewBox="0 0 140 140" class="donutsvg" aria-label="Distribución por categorías">
+      <circle cx="70" cy="70" r="\${rad}" fill="none" stroke="var(--line)" stroke-width="12"></circle>\${segs}</svg>
+      <div class="donutcenter"><b>\${centerCount}</b><span>\${esc(centerLabel)}</span><small>\${centerSub}</small></div>
+    </div><div class="donutlegend">\${legend}</div></div>\`;
 }
 function motoWidgetHtml(){
   const m=S.data.moto[0];
@@ -990,6 +995,8 @@ async function act(a){
 function run(a){Promise.resolve(act(a)).catch(e=>toast(errorMessage(e)))}
 
 document.addEventListener("click",e=>{
+  const segment=e.target.closest(".donutsegment");
+  if(segment){const cat=segment.dataset.group;S.group=S.group===cat?"":cat;S.view="all";S.selected=null;render();return}
   const b=e.target.closest("button");if(!b)return;
   const d=b.dataset;
   if(d.cmd)return rtCmd(d.cmd);
@@ -1003,7 +1010,9 @@ document.addEventListener("click",e=>{
     renderSide();return;
   }
   if("group" in d){
-    S.group=uid(S.group)===uid(d.group)?"":d.group;openSemFor(S.group);changeView(isUni()?"resumen":S.view);return;
+    S.group=uid(S.group)===uid(d.group)?"":d.group;openSemFor(S.group);
+    if(isPersonal()){S.view="all";S.selected=null;render();return}
+    changeView(isUni()?"resumen":S.view);return;
   }
   if("chip" in d){S.chip=d.chip;renderList();return}
   if(d.day){S.day=S.day===d.day?"":d.day;renderDetail();return}
@@ -1058,6 +1067,8 @@ form.onkeydown=e=>{
   if((e.ctrlKey||e.metaKey)&&e.key==="Enter"){e.preventDefault();form.requestSubmit()}
 };
 document.addEventListener("keydown",e=>{
+  const seg=e.target.closest?.(".donutsegment");
+  if(seg&&(e.key==="Enter"||e.key===" ")){e.preventDefault();const cat=seg.dataset.group;S.group=S.group===cat?"":cat;S.view="all";S.selected=null;render();return}
   if(!S.user||document.querySelector("dialog[open]"))return;
   const key=e.key.toLowerCase();
   if((e.ctrlKey||e.metaKey)&&key==="k"){e.preventDefault();return run("search")}
