@@ -542,7 +542,7 @@ async function toggleCompra(id){
 }
 function renderDetail(){
   const r=current(),k=S.selected?.k;
-  const dash=isUni()&&["resumen","calendario"].includes(S.view)&&!r;
+  const dash=(isUni()&&["resumen","calendario"].includes(S.view)&&!r)||(isPersonal()&&!r);
   $("#shell").classList.toggle("dashboard",dash);
   const mobileMenu=`<button class="btn" data-act="menu">☰ Navegación</button>`;
   let html="";
@@ -550,10 +550,7 @@ function renderDetail(){
     if(isUni()){
       html+=S.view==="calendario"?`<p class="eyebrow">${S.group?esc(subject(S.group)):"Universidad"}</p><h1>Calendario</h1>${calendar()}`:uniHome();
     }else if(isPersonal()){
-      html+=`<p class="eyebrow">Personal</p><h1>Hola, <i>${esc(displayName())}</i>.</h1>
-      <p class="muted">Guarda enlaces y notas tuyas, organizadas por categoría — por ejemplo, repuestos de tu moto.</p>
-      <div class="bento">${personalDonutHtml()}<div class="stack">${motoWidgetHtml()}${quickShopHtml()}</div></div>
-      <div class="box"><p class="eyebrow">Atajos</p><p class="muted">Ctrl / ⌘ K: buscar · N: nueva · /: filtrar · E: editar · C: copiar · P: fijar</p></div>`;
+      html+=\`<header class="personal-hero"><div class="personal-hero-meta"><span class="personal-badge">PERSONAL</span><span class="personal-date">\${new Date().toLocaleDateString("es-CO",{weekday:"long",day:"numeric",month:"short"})}</span></div><h1>Hola, <i>\${esc(displayName())}</i>.</h1><p class="muted">Tu espacio personal para organizar ideas, compras, mantenimiento y todo lo que quieras tener a mano.</p></header><section class="personal-widgets">\${personalDonutHtml()}<div class="personal-widget-stack">\${motoWidgetHtml()}\${quickShopHtml()}</div></section><section class="personal-entries-head"><div class="headrow"><h2>Todo mi espacio</h2><span class="pill">\${entries().length} entradas</span><button class="btn primary" data-act="new">+ Nueva entrada</button></div><input class="personal-search" type="search" placeholder="Filtrar entradas…" oninput="const q=this.value.toLowerCase();document.querySelectorAll('.personal-entry-grid .row').forEach(el=>el.hidden=!el.innerText.toLowerCase().includes(q))"></section><section class="personal-entry-grid">\${entries().map(([k,entry])=>rowHtml(k,entry)).join("")||\`<div class="empty-card">No hay entradas en esta vista.</div>\`}</section><section class="personal-shortcuts"><span class="eyebrow">Atajos</span><span>Ctrl / ⌘ K: buscar · N: nueva · /: filtrar · E: editar · C: copiar · P: fijar</span></section>\`;
     }else{
       html+=`<p class="eyebrow">Soporte técnico</p><h1>Hola, <i>${esc(displayName())}</i>.</h1>
       <p class="muted">Abre una entrada o busca por aplicación, título o contenido.</p>
