@@ -512,3 +512,29 @@ button:active:not(:disabled) {transform:scale(.96)}
 @media(max-width:1100px){.support-type-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.uni-columns{grid-template-columns:1fr}}
 @media(max-width:850px){.support-hero{grid-template-columns:1fr 100px}.support-emblem{width:92px;height:92px}.support-type-grid{grid-template-columns:1fr}.uni-hero{grid-template-columns:1fr 86px}.uni-hero-mark{width:82px;height:82px}.uni-hero-mark span{font-size:40px}}
 @media(max-width:560px){.support-hero{grid-template-columns:1fr}.support-emblem{display:none}.support-quick{gap:6px}.support-quick>div{padding:10px}.support-quick span{font-size:9px}.support-type-grid{grid-template-columns:1fr}.uni-hero{grid-template-columns:1fr}.uni-hero-mark{display:none}.uni-home-v2 .stats{grid-template-columns:1fr 1fr}.uni-actions{display:grid}}
+
+/* Personal knowledge graph: subtle orbital motion */
+:root[data-space="personal"] .personal-graph-section{margin:24px 0 28px}
+:root[data-space="personal"] .personal-graph-panel{display:grid;grid-template-columns:minmax(220px,.8fr) minmax(300px,1.2fr);align-items:center;gap:22px;min-height:300px;padding:24px 28px;border:1px solid rgba(197,143,112,.22);border-radius:22px;background:linear-gradient(125deg,rgba(42,29,50,.92),rgba(25,19,32,.9));overflow:hidden;position:relative}
+:root[data-space="personal"] .personal-graph-panel:before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 72% 50%,rgba(178,111,147,.12),transparent 45%);pointer-events:none}
+:root[data-space="personal"] .personal-graph-copy{position:relative;z-index:1}
+:root[data-space="personal"] .personal-graph-eyebrow{font-size:10px;letter-spacing:.18em;color:#c99a7a}
+:root[data-space="personal"] .personal-graph-copy h2{font-size:clamp(26px,3vw,38px);line-height:1.08;margin:10px 0;font-weight:500}
+:root[data-space="personal"] .personal-graph-copy h2 i{color:#d4a27e;font-family:Georgia,serif;font-weight:400}
+:root[data-space="personal"] .personal-graph-copy p{max-width:300px;color:var(--muted);font-size:13px;line-height:1.6}
+:root[data-space="personal"] .personal-graph-legend{display:flex;flex-wrap:wrap;gap:10px 14px;margin-top:18px;font-size:11px;color:var(--muted)}
+:root[data-space="personal"] .personal-graph-legend span{display:flex;align-items:center;gap:6px}
+:root[data-space="personal"] .pg-dot{width:7px;height:7px;border-radius:50%;display:inline-block;background:#c68eaa}.pg-dot-projects{background:#a58bd0}.pg-dot-notes{background:#d6a178}.pg-dot-life{background:#8e78b7}
+:root[data-space="personal"] .personal-graph-visual{height:280px;max-width:420px;width:100%;margin:auto;position:relative}
+:root[data-space="personal"] .pg-orbit{position:absolute;inset:24px 50px;border:1px solid rgba(196,148,177,.16);border-radius:50%;animation:pg-orbit-spin 38s linear infinite}
+:root[data-space="personal"] .pg-orbit-b{inset:50px 82px;border-color:rgba(208,160,126,.17);animation-duration:28s;animation-direction:reverse}
+:root[data-space="personal"] .pg-node{position:absolute;width:12px;height:12px;border-radius:50%;background:#c68eaa;box-shadow:0 0 12px rgba(198,142,170,.55);display:grid;place-items:center}
+:root[data-space="personal"] .pg-node b{position:absolute;white-space:nowrap;font-size:10px;font-weight:500;color:#e8d9e8;top:16px;left:50%;transform:translateX(-50%);animation:pg-label-counter 38s linear infinite}
+:root[data-space="personal"] .pg-node-1{top:0;left:50%}.pg-node-2{right:3%;top:50%;background:#a58bd0}.pg-node-3{bottom:0;left:50%;background:#d6a178}.pg-node-4{left:0;top:50%;background:#8e78b7}.pg-node-5{top:20%;right:12%;background:#d6a178}.pg-node-6{bottom:15%;left:14%;background:#a58bd0}
+:root[data-space="personal"] .pg-graph-core{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:72px;height:72px;border-radius:50%;border:1px solid rgba(208,160,126,.4);background:radial-gradient(circle,rgba(198,142,170,.18),rgba(38,26,48,.9));display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 0 32px rgba(176,113,148,.12);z-index:2}
+:root[data-space="personal"] .pg-core-symbol{font-family:Georgia,serif;font-size:27px;color:#d6a178;line-height:1}.pg-graph-core small{font-size:7px;letter-spacing:.15em;color:#d9bfd2;margin-top:4px}
+:root[data-space="personal"] .pg-graph-lines{position:absolute;inset:0;width:100%;height:100%;stroke:rgba(198,142,170,.2);stroke-width:1;fill:none;z-index:0}
+@keyframes pg-orbit-spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes pg-label-counter{from{transform:translateX(-50%) rotate(0deg)}to{transform:translateX(-50%) rotate(-360deg)}}
+@media(prefers-reduced-motion:reduce){:root[data-space="personal"] .pg-orbit,:root[data-space="personal"] .pg-node b{animation:none!important}}
+@media(max-width:720px){:root[data-space="personal"] .personal-graph-panel{grid-template-columns:1fr;padding:18px}.personal-graph-visual{height:250px!important}}
