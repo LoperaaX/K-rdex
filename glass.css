@@ -380,6 +380,10 @@ button.chart-legend[aria-pressed="true"] {
   overflow-wrap: anywhere;
 }
 
+.record-detail.class-detail {
+  max-width: 56rem;
+}
+
 .record-detail .box {
   border-radius: 22px;
   background: linear-gradient(155deg, rgba(255, 255, 255, .048), rgba(255, 255, 255, .016));
@@ -473,6 +477,10 @@ dialog::backdrop {
 
   #shell {
     align-items: start;
+  }
+
+  #shell:has(> #recordList[hidden]) {
+    grid-template-columns: 248px minmax(0, 1fr);
   }
 }
 

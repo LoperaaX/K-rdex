@@ -109,7 +109,7 @@ function focusDetail(){
   const detail = $("#detail");
   detail.focus({preventScroll:true});
   const stacked = matchMedia("(max-width: 1023px)").matches;
-  detail.scrollIntoView({block:stacked ? "start" : "nearest"});
+  detail.scrollIntoView({block:stacked || $("#recordList").hidden ? "start" : "nearest"});
 }
 function matches(k,r,q){
   const h=norm([titleOf(r),r.contenido,r.descripcion,plain(r.resumen),r.cierre,
@@ -849,6 +849,8 @@ async function toggleCompra(id){
 
 function renderDetail(){
   const r = current(), k = S.selected?.k;
+  const readingClass = !!r && k === "clase";
+  $("#recordList").hidden = readingClass;
   let html;
   if (r) {
     const meta = k === "soporte" ? [singular[r.tipo], r.aplicacion, r.categoria] :
@@ -858,7 +860,7 @@ function renderDetail(){
     const pin = k === "soporte" || k === "personal";
     const copyLabel = k === "personal" ? "Copiar notas (C)" :
       r.tipo === "plantilla" ? "Copiar plantilla (C)" : "Copiar contenido (C)";
-    html = `<article class="max-w-3xl mx-auto space-y-5 record-detail">
+    html = `<article class="max-w-3xl mx-auto space-y-5 record-detail${readingClass ? " class-detail" : ""}">
       <div class="flex flex-wrap items-center gap-2">
         ${action("back", "← Volver", "pill-btn text-xs py-1 px-3")}
         ${meta.filter(Boolean).map(t => `<span class="pill-tag">${esc(t)}</span>`).join("")}
@@ -1262,7 +1264,22 @@ async function act(a){
   if(a==="settings"){fillSettings();return $("#settings").showModal()}
   if(a==="setclose")return $("#settings").close();
   if(a==="recclose")return $("#recover").close();
-  if(a==="back"){clearSelection();render();$("#listTitle").scrollIntoView({block:"nearest"});return}
+  if(a==="back"){
+    const readingClass=$("#recordList").hidden;
+    const classId=readingClass ? uid(r?.id) : "";
+    clearSelection();
+    render();
+    if(readingClass){
+      const classRow=[...document.querySelectorAll('#items [data-open="clase"]')]
+        .find(row=>row.dataset.id===classId);
+      const target=classRow||$("#q");
+      target.focus({preventScroll:true});
+      target.scrollIntoView({block:"nearest"});
+    }else{
+      $("#listTitle").scrollIntoView({block:"nearest"});
+    }
+    return;
+  }
   if(a==="cancel"){if(!S.writing&&discardOk())$("#editor").close();return}
   if(a==="palclose")return $("#palette").close();
   if(a==="theme")return setTheme(root.dataset.theme==="dark"?"light":"dark");
@@ -1428,6 +1445,7 @@ document.addEventListener("keydown",e=>{
   }
   if(key==="/"){e.preventDefault();if($("#q").offsetParent)$("#q").focus();else run("search");return}
   if(key==="arrowdown"||key==="arrowup"){
+    if($("#recordList").hidden)return;
     const l=entries();if(!l.length)return;
     const i=l.findIndex(([k,r])=>k===S.selected?.k&&uid(r.id)===uid(S.selected?.id));
     const j=i<0?(key==="arrowdown"?0:l.length-1):Math.max(0,Math.min(l.length-1,i+(key==="arrowdown"?1:-1)));
