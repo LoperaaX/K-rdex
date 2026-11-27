@@ -429,17 +429,27 @@ function uniHome(){
   const matter=S.group&&find("materia",S.group);
   const late=tasks.filter(r=>r.fecha&&r.fecha<today()&&r.estado!=="completada")
     .sort((a,b)=>a.fecha.localeCompare(b.fecha));
-  const upcoming=tasks.filter(r=>r.fecha&&r.fecha>=today()&&r.estado!=="completada").sort((a,b)=>a.fecha.localeCompare(b.fecha)).slice(0,6);
-  return `<div class="uni-home-v2"><header class="uni-hero"><div><p class="eyebrow">CAMPUS PERSONAL · ${matter?esc(matter.semestre||"MATERIA"):"TU ESPACIO ACADÉMICO"}</p>
-    <h1>${esc(matter?matter.nombre:"Mi universidad")}</h1><p class="uni-intro">${matter?"Material de clase, seguimiento y entregas de esta materia.":"Organiza tus materias, registra tus clases y mantén tus entregas bajo control."}</p></div>
-    <div class="uni-hero-mark" aria-hidden="true"><span>∑</span><small>APRENDER<br>· CRECER ·</small></div></header>
-    <div class="uni-actions"><div class="actions">${action("newclass","+ Nueva clase","btn primary")}${action("newtask","+ Actividad")}${action("neweval","+ Evaluación")}</div>
-    ${matter?`<div class="actions">${action("editsubject","Editar materia")}${action("delsubject","Borrar materia","btn danger")}</div>`:""}</div>
-    ${stats([["clase","Clases",classes.length],["actividad","Actividades",tasks.filter(r=>r.tipo==="actividad").length],["evaluacion","Evaluaciones",tasks.filter(r=>r.tipo==="evaluacion").length]])}
-    <div class="uni-progress"><div><p class="eyebrow">RITMO DE ESTUDIO</p><b>${done} <small>/ ${tasks.length} completadas</small></b></div><strong>${tasks.length?Math.round(100*done/tasks.length):0}%</strong><progress max="${tasks.length||1}" value="${done}"></progress></div>
-    <div class="uni-columns"><section class="uni-panel"><p class="eyebrow">AGENDA · PRÓXIMAS FECHAS</p>${scopedTasksList(upcoming)}${action("calendar","Ver calendario")}</section>
-    <section class="uni-panel"><p class="eyebrow">AULA · ÚLTIMAS CLASES</p>${classes.length?classes.sort((a,b)=>b.fecha.localeCompare(a.fecha)).slice(0,5).map(r=>keyBtn("clase",r,`${dateText(r.fecha)} · ${r.titulo}`)).join(""):`<p class="muted">Crea una materia y guarda tu primera clase.</p>`}</section></div>
-    ${late.length?`<div class="uni-overdue"><p class="eyebrow">ATENCIÓN · VENCIDAS · ${late.length}</p>${scopedTasksList(late)}</div>`:""}</div>`;
+  return `<p class="eyebrow">${matter?esc(matter.semestre||"Materia"):"Universidad"}</p>
+    <h1>${esc(matter?matter.nombre:"Mi universidad")}</h1>
+    <div class="actions">${action("newclass","Nueva clase","btn primary")}
+    ${action("newtask","Nueva actividad")}${action("neweval","Nueva evaluación")}
+    </div>
+    ${matter?`<div class="actions">${action("editsubject","Editar materia")}${action("delsubject","Borrar materia","btn danger")}</div>`:""}
+    ${stats([["clase","Clases",classes.length],["actividad","Actividades",tasks.filter(r=>r.tipo==="actividad").length],
+      ["evaluacion","Evaluaciones",tasks.filter(r=>r.tipo==="evaluacion").length]])}
+    <div class="box"><p class="eyebrow">Progreso de actividades y evaluaciones</p>
+    <progress max="${tasks.length||1}" value="${done}"></progress>
+    <small>${done} de ${tasks.length} completadas${tasks.length?" · "+Math.round(100*done/tasks.length)+"%":""}</small></div>
+    ${late.length?`<div class="box"><p class="eyebrow danger">Vencidas · ${late.length}</p>
+    ${scopedTasksList(late)}</div>`:""}
+    <div class="box"><p class="eyebrow">Próximas fechas</p>
+    ${scopedTasksList(tasks.filter(r=>r.fecha&&r.fecha>=today()&&r.estado!=="completada")
+      .sort((a,b)=>a.fecha.localeCompare(b.fecha)).slice(0,6))}
+    ${action("calendar","Abrir calendario")}</div>
+    <div class="box"><p class="eyebrow">Últimas clases</p>
+    ${classes.length?classes.sort((a,b)=>b.fecha.localeCompare(a.fecha)).slice(0,5)
+      .map(r=>keyBtn("clase",r,`${dateText(r.fecha)} · ${r.titulo}`)).join(""):
+      `<p class="muted">Crea una materia y guarda tu primera clase.</p>`}</div>`;
 }
 function academicDetail(k,r){
   if(k==="clase"){
@@ -469,10 +479,9 @@ function personalDonutHtml(){
   const segs=cats.map(({cat,count})=>{
     const len=Math.max((count/total)*usable,4),dash=`${len} ${C-len}`,doff=-off;
     off+=len+gap;
-    return `<circle class="donutsegment" data-group="${esc(cat)}" role="button" tabindex="0"
-      aria-label="Filtrar categoría ${esc(cat)}, ${count} entradas" cx="70" cy="70" r="${rad}"
-      fill="none" stroke="${personalColor(cat)}" stroke-width="${S.group===cat?15:12}"
-      stroke-linecap="round" stroke-dasharray="${dash}" stroke-dashoffset="${doff}"></circle>`;
+    return `<circle cx="70" cy="70" r="${rad}" fill="none" stroke="${personalColor(cat)}"
+      stroke-width="${S.group===cat?15:12}" stroke-linecap="round"
+      stroke-dasharray="${dash}" stroke-dashoffset="${doff}"></circle>`;
   }).join("");
   const legend=cats.map(({cat,count})=>{
     const pct=Math.round(100*count/total);
@@ -480,14 +489,10 @@ function personalDonutHtml(){
       <span class="catdot" style="background:${personalColor(cat)}"></span>
       <span class="grow">${esc(cat)}</span><small>${pct}%</small><b>${count}</b></button>`;
   }).join("");
-  const selected=S.group?cats.find(c=>c.cat===S.group):null;
-  const centerCount=selected?.count??total;
-  const centerLabel=selected?.cat??(total===1?"Entrada":"Entradas");
-  const centerSub=selected?"Filtrado":`${cats.length} categorías`;
   return `<div class="box donutbox"><p class="eyebrow">Distribución personal</p>
-    <div class="donutwrap"><svg viewBox="0 0 140 140" class="donutsvg" aria-label="Distribución por categorías">
+    <div class="donutwrap"><svg viewBox="0 0 140 140" class="donutsvg">
       <circle cx="70" cy="70" r="${rad}" fill="none" stroke="var(--line)" stroke-width="12"></circle>${segs}</svg>
-      <div class="donutcenter"><b>${centerCount}</b><span>${esc(centerLabel)}</span><small>${centerSub}</small></div>
+      <div class="donutcenter"><b>${total}</b><span>${total===1?"Entrada":"Entradas"}</span><small>${cats.length} categorías</small></div>
     </div><div class="donutlegend">${legend}</div></div>`;
 }
 function motoWidgetHtml(){
@@ -537,7 +542,7 @@ async function toggleCompra(id){
 }
 function renderDetail(){
   const r=current(),k=S.selected?.k;
-  const dash=(isUni()&&["resumen","calendario"].includes(S.view)&&!r)||(isPersonal()&&!r);
+  const dash=isUni()&&["resumen","calendario"].includes(S.view)&&!r;
   $("#shell").classList.toggle("dashboard",dash);
   const mobileMenu=`<button class="btn" data-act="menu">☰ Navegación</button>`;
   let html="";
@@ -545,14 +550,15 @@ function renderDetail(){
     if(isUni()){
       html+=S.view==="calendario"?`<p class="eyebrow">${S.group?esc(subject(S.group)):"Universidad"}</p><h1>Calendario</h1>${calendar()}`:uniHome();
     }else if(isPersonal()){
-      const personalCount=S.data.personal.length, personalCats=unique(S.data.personal.map(r=>r.categoria||"Sin categoría")).length;
-      html+=`<header class="personal-hero personal-hero-v2"><div class="personal-hero-copy"><div class="personal-hero-meta"><span class="personal-badge">ESPACIO PERSONAL</span><span class="personal-date">${new Date().toLocaleDateString("es-CO",{weekday:"long",day:"numeric",month:"long"})}</span></div><p class="personal-kicker">UN LUGAR PARA LO QUE IMPORTA</p><h1>Hola, <i>${esc(displayName())}</i>.</h1><p class="personal-intro">Ideas, proyectos, pendientes y pequeñas cosas que quiero tener presentes. Todo en un mismo lugar.</p><div class="personal-hero-stats"><div><b>${personalCount}</b><span>entradas guardadas</span></div><div><b>${personalCats}</b><span>categorías</span></div><div><b>${S.data.compras.filter(x=>!x.hecho).length}</b><span>pendientes de compra</span></div></div></div><div class="personal-hero-art" aria-hidden="true"><span class="hero-art-orbit hero-art-orbit-1"></span><span class="hero-art-orbit hero-art-orbit-2"></span><span class="hero-art-mark">K</span><span class="hero-art-caption">KÁRDEX<br>PERSONAL</span></div></header><section class="personal-graph-section"><div class="personal-section-label"><span>01 / MAPA DE CONOCIMIENTO</span><p>Tu universo conectado</p></div><div class="personal-graph-panel"><div class="personal-graph-copy"><span class="personal-graph-eyebrow">KÁRDEX · GRAPH</span><h2>Todo está<br><i>conectado.</i></h2><p>Ideas, proyectos, recuerdos y conocimientos que se relacionan entre sí.</p><div class="personal-graph-legend"><span><i class="pg-dot pg-dot-ideas"></i>Ideas</span><span><i class="pg-dot pg-dot-projects"></i>Proyectos</span><span><i class="pg-dot pg-dot-notes"></i>Notas</span><span><i class="pg-dot pg-dot-life"></i>Personal</span></div></div><div class="personal-graph-visual" aria-label="Mapa orbital de ideas y áreas personales"><div class="pg-ambient"></div><div class="pg-orbit pg-orbit-a"><span class="pg-node pg-node-1"><b>Ideas</b></span><span class="pg-node pg-node-2"><b>Proyectos</b></span><span class="pg-node pg-node-3"><b>Diario</b></span></div><div class="pg-orbit pg-orbit-b"><span class="pg-node pg-node-4"><b>Aprendizaje</b></span><span class="pg-node pg-node-5"><b>Mi moto</b></span><span class="pg-node pg-node-6"><b>Objetivos</b></span></div><div class="pg-orbit pg-orbit-c"><span class="pg-node pg-node-7"><b>Notas</b></span><span class="pg-node pg-node-8"><b>Lecturas</b></span></div><div class="pg-graph-core"><span class="pg-core-halo"></span><span class="pg-core-symbol">K</span><small>KÁRDEX</small></div><span class="pg-star pg-star-1"></span><span class="pg-star pg-star-2"></span><span class="pg-star pg-star-3"></span><span class="pg-star pg-star-4"></span><svg class="pg-graph-lines" viewBox="0 0 400 300" aria-hidden="true"><g><path d="M200 150 L200 28 M200 150 L337 80 M200 150 L340 228 M200 150 L65 228 M200 150 L62 80 M200 150 L200 272 M65 80 L337 80 M62 80 L65 228 M337 80 L340 228 M65 228 L200 272 M340 228 L200 272"/></g></svg></div></div></section><section class="personal-widgets personal-widgets-v2"><div class="personal-section-label"><span>01 / TU UNIVERSO</span><p>Explora por categoría</p></div>${personalDonutHtml()}<div class="personal-widget-stack">${motoWidgetHtml()}${quickShopHtml()}</div></section><section class="personal-entries-head personal-entries-v2"><div class="personal-section-label"><span>02 / BIBLIOTECA PERSONAL</span><p>Lo que has ido guardando</p></div><div class="headrow"><h2>Tu colección</h2><span class="pill">${entries().length} registros</span><button class="btn primary" data-act="new">+ Crear entrada</button></div><input class="personal-search" type="search" placeholder="Buscar en tu espacio…" oninput="const q=this.value.toLowerCase();document.querySelectorAll('.personal-entry-grid .row').forEach(el=>el.hidden=!el.innerText.toLowerCase().includes(q))"></section><section class="personal-entry-grid personal-entry-grid-v2">${entries().map(([k,entry])=>rowHtml(k,entry)).join("")||`<div class="empty-card">Todavía no hay entradas. Guarda aquí algo que quieras recordar.</div>`}</section><section class="personal-shortcuts personal-shortcuts-v2"><span class="eyebrow">NAVEGACIÓN RÁPIDA</span><span>Ctrl / ⌘ K buscar · N crear · / filtrar · E editar · C copiar · P fijar</span></section>`;
+      html+=`<p class="eyebrow">Personal</p><h1>Hola, <i>${esc(displayName())}</i>.</h1>
+      <p class="muted">Guarda enlaces y notas tuyas, organizadas por categoría — por ejemplo, repuestos de tu moto.</p>
+      <div class="bento">${personalDonutHtml()}<div class="stack">${motoWidgetHtml()}${quickShopHtml()}</div></div>
+      <div class="box"><p class="eyebrow">Atajos</p><p class="muted">Ctrl / ⌘ K: buscar · N: nueva · /: filtrar · E: editar · C: copiar · P: fijar</p></div>`;
     }else{
-      const supportCounts=Object.entries(types).map(([k,t])=>[k,t,S.data.soporte.filter(r=>r.tipo===k).length]);
-      html+=`<div class="support-home-v2"><header class="support-hero"><div><p class="eyebrow">SERVICE DESK · CENTRO DE CONOCIMIENTO</p><h1>Hola, <i>${esc(displayName())}</i>.</h1><p class="support-intro">Tu mesa de trabajo para documentar, consultar y resolver. Todo el conocimiento técnico, listo para cuando lo necesites.</p></div><div class="support-emblem" aria-hidden="true"><span>⌘</span><small>KNOWLEDGE<br>BASE</small></div></header>
-      <div class="support-quick"><div><b>${S.data.soporte.length}</b><span>recursos documentados</span></div><div><b>${S.data.soporte.filter(r=>r.fijado).length}</b><span>accesos fijados</span></div><div><b>${unique(S.data.soporte.map(r=>r.aplicacion)).length}</b><span>aplicaciones</span></div></div>
-      <div class="support-type-grid">${supportCounts.map(([k,t,n])=>`<button class="support-type" data-view="${k}"><span>${esc(t)}</span><b>${n}</b><small>Explorar recursos →</small></button>`).join("")}</div>
-      <div class="support-hint"><p class="eyebrow">FLUJO DE TRABAJO</p><p>Busca por aplicación, título o contenido. Usa plantillas para responder, procesos para seguir procedimientos y aprendizajes para conservar soluciones útiles.</p><small>Ctrl / ⌘ K buscar · N nueva entrada · E editar · C copiar · P fijar</small></div></div>`;
+      html+=`<p class="eyebrow">Soporte técnico</p><h1>Hola, <i>${esc(displayName())}</i>.</h1>
+      <p class="muted">Abre una entrada o busca por aplicación, título o contenido.</p>
+      ${stats(Object.entries(types).map(([k,t])=>[k,t,S.data.soporte.filter(r=>r.tipo===k).length]))}
+      <div class="box"><p class="eyebrow">Atajos</p><p class="muted">Ctrl / ⌘ K: buscar · N: nueva · /: filtrar · E: editar · C: copiar · Shift C: copiar cierre · P: fijar</p></div>`;
     }
   }else{
     const meta=k==="soporte"?[singular[r.tipo],r.aplicacion,r.categoria]:
@@ -987,8 +993,6 @@ async function act(a){
 function run(a){Promise.resolve(act(a)).catch(e=>toast(errorMessage(e)))}
 
 document.addEventListener("click",e=>{
-  const segment=e.target.closest(".donutsegment");
-  if(segment){const cat=segment.dataset.group;S.group=S.group===cat?"":cat;S.view="all";S.selected=null;render();return}
   const b=e.target.closest("button");if(!b)return;
   const d=b.dataset;
   if(d.cmd)return rtCmd(d.cmd);
@@ -1002,9 +1006,7 @@ document.addEventListener("click",e=>{
     renderSide();return;
   }
   if("group" in d){
-    S.group=uid(S.group)===uid(d.group)?"":d.group;openSemFor(S.group);
-    if(isPersonal()){S.view="all";S.selected=null;render();return}
-    changeView(isUni()?"resumen":S.view);return;
+    S.group=uid(S.group)===uid(d.group)?"":d.group;openSemFor(S.group);changeView(isUni()?"resumen":S.view);return;
   }
   if("chip" in d){S.chip=d.chip;renderList();return}
   if(d.day){S.day=S.day===d.day?"":d.day;renderDetail();return}
@@ -1059,8 +1061,6 @@ form.onkeydown=e=>{
   if((e.ctrlKey||e.metaKey)&&e.key==="Enter"){e.preventDefault();form.requestSubmit()}
 };
 document.addEventListener("keydown",e=>{
-  const seg=e.target.closest?.(".donutsegment");
-  if(seg&&(e.key==="Enter"||e.key===" ")){e.preventDefault();const cat=seg.dataset.group;S.group=S.group===cat?"":cat;S.view="all";S.selected=null;render();return}
   if(!S.user||document.querySelector("dialog[open]"))return;
   const key=e.key.toLowerCase();
   if((e.ctrlKey||e.metaKey)&&key==="k"){e.preventDefault();return run("search")}
