@@ -121,6 +121,12 @@ function scoped(k){
   return S.data[k].filter(r=>!S.group||
     (k==="soporte"?r.aplicacion===S.group:k==="personal"?r.categoria===S.group:uid(r.materia_id)===uid(S.group)));
 }
+function isMatterSummary(){
+  return isUni()&&S.view==="resumen"&&!!S.group;
+}
+function classesByDate(){
+  return scoped("clase").sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
+}
 function entries(){
   let rows;
   if(isPersonal()){
@@ -135,14 +141,20 @@ function entries(){
         String(b.updated_at||"").localeCompare(String(a.updated_at||"")))
       .map(r=>["soporte",r]);
   }else if(S.view==="clase"){
-    rows=scoped("clase").sort((a,b)=>b.fecha.localeCompare(a.fecha)).map(r=>["clase",r]);
+    rows=classesByDate().map(r=>["clase",r]);
   }else{
     rows=scoped("tarea").filter(r=>S.view==="resumen"||
       (S.view==="calendario"?!!r.fecha:r.tipo===S.view))
       .sort((a,b)=>(a.fecha||"9999").localeCompare(b.fecha||"9999")).map(r=>["tarea",r]);
   }
-  return rows.filter(([k,r])=>
+  const matchesFilters=rows.filter(([k,r])=>
     (!S.chip||(k==="soporte"?r.categoria:k==="clase"?r.modulo:r.estado)===S.chip)&&matches(k,r,S.q));
+  if(isMatterSummary()){
+    for(const lesson of classesByDate()){
+      if(matches("clase",lesson,S.q))matchesFilters.push(["clase",lesson]);
+    }
+  }
+  return matchesFilters;
 }
 
 // ───────────── Sesión y lectura ─────────────
@@ -252,10 +264,10 @@ function renderSide(){
     (groupSrc.map(x=>navButton("group",x,x,S.group===x,S.group===x?"×":records.filter(r => (isPersonal() ? r.categoria : r.aplicacion) === x).length)).join("")||
     `<p class="empty">Aún no hay elementos.</p>`);
 }
-function rowHtml(k,r){
+function rowHtml(k,r,showTaskType=false){
   const meta=k==="soporte"?`${r.aplicacion} · ${singular[r.tipo]||"Entrada"}`:
     k==="personal"?(r.categoria||"Personal"):
-    k==="materia"?"Materia":`${subject(r.materia_id)} · ${dateText(r.fecha)}`;
+    k==="materia"?"Materia":`${showTaskType&&k==="tarea"?(r.tipo==="evaluacion"?"Evaluación":"Actividad"):subject(r.materia_id)} · ${dateText(r.fecha)}`;
   const desc=k==="soporte"?r.descripcion||r.contenido:k==="personal"?(r.dato_clave||r.contenido):k==="clase"?r.modulo||plain(r.resumen):
     k==="materia"?r.semestre:states[r.estado];
   const selected=S.selected?.k===k&&uid(S.selected.id)===uid(r.id);
@@ -282,10 +294,29 @@ function renderList(){
   const sel=$("#chipSel"),all=!isUni()?"Todas las categorías":k==="clase"?"Todos los módulos":"Todos los estados";
   sel.hidden=k!=="soporte"&&!chips.length;
   sel.innerHTML=option("",all,S.chip)+chips.map(([v,t])=>option(v,t,S.chip)).join("");
+  const split=isMatterSummary();
+  sel.setAttribute("aria-label",split?"Estado de actividades y evaluaciones":"Filtrar");
   const l=entries();
   $("#listCount").textContent=S.loading?"Cargando…":`${l.length} ${l.length===1?"registro":"registros"}`;
-  $("#items").innerHTML=l.map(([t,r])=>rowHtml(t,r)).join("")||
+  const items=$("#items");
+  items.classList.toggle("matter-summary-list",split);
+  items.classList.toggle("space-y-1",!split);
+  if(split){
+    items.innerHTML=matterListSection("matter-tasks","Actividades y evaluaciones",
+      l.filter(([kind])=>kind==="tarea"),"No hay actividades ni evaluaciones para mostrar.")+
+      matterListSection("matter-classes","Historial de clases",
+        l.filter(([kind])=>kind==="clase"),"No hay clases para mostrar.");
+    return;
+  }
+  items.innerHTML=l.map(([t,r])=>rowHtml(t,r)).join("")||
     `<p class="text-xs text-zinc-500 p-4">${S.loading?"Cargando…":"No hay registros en esta vista."}</p>`;
+}
+function matterListSection(id,title,rows,emptyMessage){
+  return `<section class="matter-list-section" aria-labelledby="${id}">
+    <h3 id="${id}" class="eyebrow">${title}</h3>
+    <div class="matter-list-rows">${rows.map(([kind,record])=>rowHtml(kind,record,true)).join("")||
+      `<p class="text-xs text-zinc-500 p-4">${S.loading?"Cargando…":emptyMessage}</p>`}</div>
+  </section>`;
 }
 function loadAlert(){
   const errors=relevantErrors();if(!errors.length)return "";
@@ -472,7 +503,7 @@ function calendar(full = false) {
 
 function uniHome() {
   const matter = find("materia", S.group);
-  const classes = scoped("clase").sort((a,b) => (b.fecha || "").localeCompare(a.fecha || ""));
+  const classes = classesByDate();
   const tasks = scoped("tarea");
   const upcoming = tasks.filter(t => t.fecha && t.fecha >= today() && t.estado !== "completada")
     .sort((a,b) => a.fecha.localeCompare(b.fecha));
@@ -552,10 +583,9 @@ function uniHome() {
         </div>
       </div>
 
-      <!-- Últimas clases -->
       <div class="glass-box p-5 space-y-2">
-        <p class="text-[11px] uppercase tracking-wider font-semibold text-zinc-400">Últimas clases</p>
-        ${classes.length ? classes.slice(0, 5).map(c => `
+        <p class="text-[11px] uppercase tracking-wider font-semibold text-zinc-400">${matter ? "Última clase" : "Últimas clases"}</p>
+        ${classes.length ? classes.slice(0, matter ? 1 : 5).map(c => `
           <button data-open="clase" data-id="${esc(c.id)}" class="w-full text-left py-2.5 border-b border-white/10 last:border-0 hover:text-white text-zinc-300 text-xs sm:text-sm cursor-pointer">
             ${dateText(c.fecha)} · <strong class="text-white">${esc(c.titulo)}</strong>
           </button>
