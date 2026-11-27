@@ -135,14 +135,17 @@
 <dialog id="editor" aria-labelledby="editorTitle">
   <div class="modalhead">
     <h2 id="editorTitle"></h2>
-    <button class="closebtn" data-act="cancel"><span>Cerrar</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    <div class="editor-actions">
+      <button id="saveTop" type="submit" form="editForm" class="btn primary">Guardar</button>
+      <button type="button" class="closebtn" data-act="cancel"><span>Cerrar</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <p id="formErr" class="err" role="alert"></p>
   </div>
   <form id="editForm" class="stack">
     <div id="formFields" class="stack"></div>
-    <p id="formErr" class="err" role="alert"></p>
     <div class="actions end">
       <button type="button" class="btn" data-act="cancel">Cancelar</button>
-      <button id="save" class="btn primary">Guardar</button>
+      <button id="save" type="submit" class="btn primary">Guardar</button>
     </div>
   </form>
 </dialog>

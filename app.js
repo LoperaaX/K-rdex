@@ -1122,12 +1122,14 @@ const area=(name,label,value="",attrs="")=>
 const selectField=(name,label,options)=>
   `<label class="field"><span>${esc(label)}</span><select name="${name}">${options}</select></label>`;
 const form=$("#editForm");
+const editorSaveButtons=[$("#saveTop"),$("#save")];
 function edit(k,r=null,preset={}){
   if(S.writing||S.loading)return toast("Espera a que termine la operación.");
   if((k==="clase"||k==="tarea")&&!S.data.materia.length){
     toast("Primero crea la materia. Después podrás añadir clases y actividades.");return edit("materia");
   }
-  S.edit={k,id:r?.id??null}; $("#formErr").textContent=""; $("#save").disabled=false;
+  S.edit={k,id:r?.id??null}; $("#formErr").textContent="";
+  editorSaveButtons.forEach(button=>button.disabled=false);
   let html="",title="";
   if(k==="name"){
     title="Tu nombre";html=field("nombre","Cómo quieres que te salude",displayName(),"text",'required maxlength="60"');
@@ -1256,7 +1258,8 @@ async function saveRow(k,id,v){
 form.onsubmit=async e=>{
   e.preventDefault();if(S.writing||!S.edit)return;
   const {k,id}=S.edit,epoch=S.epoch;
-  S.writing=true;$("#save").disabled=true;$("#formErr").textContent="";
+  S.writing=true;$("#formErr").textContent="";
+  editorSaveButtons.forEach(button=>button.disabled=true);
   try{
     const v=values();
     if(k==="name"){
@@ -1282,7 +1285,10 @@ form.onsubmit=async e=>{
     if(k!=="name"&&k!=="moto"&&S.selected)focusDetail();
     toast("Cambios guardados.");
   }catch(err){$("#formErr").textContent=errorMessage(err)}
-  finally{S.writing=false;$("#save").disabled=false}
+  finally{
+    S.writing=false;
+    editorSaveButtons.forEach(button=>button.disabled=false);
+  }
 };
 async function updateCurrent(v){
   const r=current(),k=S.selected?.k,epoch=S.epoch;
