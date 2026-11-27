@@ -23,6 +23,8 @@ Un solo archivo `index.html` + Supabase (login y base de datos).
 
 ## Uso
 
+La interfaz se sirve como archivos estáticos. Si cambias las clases de Tailwind usadas en `index.html` o `app.js`, regenera la hoja de estilos con `npx tailwindcss@3.4.17 --content "index.html,app.js" --output glass-utilities.css`.
+
 | Sección | Qué hace |
 |---|---|
 | Plantillas | Escribe `{{usuario}}`, `{{ticket}}`, etc. Al abrirla aparecen campos para rellenar y una vista previa en vivo. «Copiar texto» copia el resultado final. |

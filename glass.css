@@ -1,0 +1,497 @@
+/* ==========================================================================
+   SISTEMA DE IDENTIDAD POR AMBIENTE (SOPORTE · UNIVERSIDAD · PERSONAL)
+   ========================================================================== */
+:root {
+  --bg: #0c0c0f;
+  --panel: rgba(22, 22, 27, 0.68);
+  --card: rgba(31, 31, 38, 0.58);
+  --text: #f2f1ef;
+  --muted: #9e9da6;
+  --line: rgba(255, 255, 255, 0.10);
+  --serif: "Instrument Serif", Georgia, serif;
+  --sans: "Inter", system-ui, -apple-system, sans-serif;
+
+  /* Default: SOPORTE (Dorado cálido) */
+  --accent: #e3c08d;
+  --accent-soft: rgba(227, 192, 141, 0.16);
+  --accent-border: rgba(227, 192, 141, 0.36);
+  --on-accent: #1e1508;
+  --orb-1: rgba(227, 192, 141, 0.24);
+  --orb-2: rgba(180, 134, 72, 0.16);
+}
+
+:root[data-space="uni"]:not([data-theme="light"]) {
+  /* UNIVERSIDAD (Verde Menta) */
+  --accent: #9bd7c0;
+  --accent-soft: rgba(155, 215, 192, 0.16);
+  --accent-border: rgba(155, 215, 192, 0.38);
+  --on-accent: #0d241b;
+  --orb-1: rgba(155, 215, 192, 0.22);
+  --orb-2: rgba(74, 168, 133, 0.15);
+}
+
+:root[data-space="personal"]:not([data-theme="light"]) {
+  /* PERSONAL (Cobre) */
+  --accent: #c77b4a;
+  --accent-soft: rgba(199, 123, 74, 0.18);
+  --accent-border: rgba(199, 123, 74, 0.40);
+  --on-accent: #241206;
+  --orb-1: rgba(221, 140, 90, 0.28);
+  --orb-2: rgba(162, 82, 42, 0.18);
+}
+
+* {
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.5;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+.font-serif-editorial {
+  font-family: var(--serif);
+  font-weight: 400;
+}
+
+/* Fondo ambiental reactivo según espacio */
+.ambient-bg {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(760px circle at 10% -8%, var(--orb-1), transparent 62%),
+    radial-gradient(640px circle at 96% 8%, var(--orb-2), transparent 60%),
+    radial-gradient(620px circle at 82% 108%, var(--orb-1), transparent 62%),
+    var(--bg);
+  transition: background 0.5s ease;
+  display: none;
+}
+
+/* Superficies Apple Dark Glassmorphism */
+.glass-panel {
+  background: var(--panel);
+  backdrop-filter: blur(22px) saturate(165%);
+  -webkit-backdrop-filter: blur(22px) saturate(165%);
+  border: 1px solid var(--line);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 20px 50px rgba(0, 0, 0, 0.45);
+}
+
+.glass-box {
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.048) 0%, rgba(255, 255, 255, 0.016) 100%);
+  backdrop-filter: blur(22px) saturate(165%);
+  -webkit-backdrop-filter: blur(22px) saturate(165%);
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 22px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 14px 36px rgba(0, 0, 0, 0.36);
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.glass-box-interactive:hover {
+  border-color: var(--accent-border);
+  transform: translateY(-2px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 18px 40px rgba(0, 0, 0, 0.48);
+}
+
+/* Botones tipo píldora Apple */
+.pill-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10);
+  transition: all 0.18s ease;
+  cursor: pointer;
+}
+
+.pill-btn:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: var(--accent-border);
+  transform: translateY(-1px);
+}
+
+.pill-btn:active {
+  transform: scale(0.97);
+}
+
+.pill-primary {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+  font-weight: 600;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 6px 20px -4px var(--orb-1);
+}
+
+.pill-primary:hover {
+  background: var(--accent);
+  filter: brightness(1.08);
+}
+
+.pill-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 11.5px;
+  font-weight: 500;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  color: var(--accent);
+}
+
+/* Segmented Control (Soporte / Universidad / Personal) */
+.space-switch {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.36);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+.space-switch button {
+  padding: 6px 4px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  text-align: center;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.space-switch button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+  box-shadow: 0 2px 12px var(--orb-1);
+}
+
+/* Navegación y filas */
+.nav-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 13px;
+  font-size: 13.5px;
+  color: var(--muted);
+  border: 1px solid transparent;
+  transition: all 0.16s ease;
+  cursor: pointer;
+  text-align: left;
+}
+
+.nav-item:hover {
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--text);
+}
+
+.nav-item.active {
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.entry-row {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid transparent;
+  text-align: left;
+  transition: all 0.16s ease;
+  cursor: pointer;
+}
+
+.entry-row:hover {
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.entry-row.active {
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
+}
+
+/* Inputs Glass */
+.glass-input {
+  background: rgba(0, 0, 0, 0.30);
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 14px;
+  padding: 8px 12px;
+  color: var(--text);
+  font-size: 13px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.glass-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* Calendario Universidad */
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+.cal-day {
+  min-height: 36px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.cal-day:hover {
+  border-color: var(--accent);
+  transform: scale(1.05);
+}
+.cal-day.has-event {
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
+  color: var(--accent);
+  font-weight: 700;
+}
+.cal-day.is-today {
+  background: #8ab4ff;
+  color: #0b1530;
+  border-color: #8ab4ff;
+  font-weight: 700;
+}
+.cal-day.is-chosen {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* Donut SVG */
+.donut-seg {
+  transition: stroke-width 0.2s ease, opacity 0.2s ease;
+  cursor: pointer;
+}
+.donut-seg:hover {
+  stroke-width: 15.5;
+}
+
+.kbd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  color: var(--muted);
+}
+
+body:has(#shell:not([hidden])) .ambient-bg {
+  display: block;
+}
+
+.sidebar-scroll {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.sidebar-new, #newBtn {
+  white-space: nowrap;
+}
+
+.pill-btn.text-xs, .glass-input.text-xs {
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.pill-btn.text-\[11px\] {
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.pill-btn.py-1 { padding-block: 4px; }
+.pill-btn.px-3 { padding-inline: 12px; }
+.pill-btn.px-2\.5 { padding-inline: 10px; }
+.glass-input.pr-8 { padding-right: 32px; }
+
+#shell > aside, #shell > section, #detail {
+  min-width: 0;
+}
+
+#items {
+  min-height: 0;
+}
+
+#detail:focus {
+  outline: none;
+}
+
+#detail {
+  container-type: inline-size;
+}
+
+@container (max-width: 580px) {
+  .support-bento, .personal-bento {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .personal-bento > * {
+    grid-column: auto;
+  }
+}
+
+@container (max-width: 320px) {
+  .support-chart {
+    flex-direction: column;
+  }
+}
+
+#who:hover {
+  border-color: var(--accent-border);
+}
+
+button.chart-legend[aria-pressed="true"] {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent-border);
+}
+
+.record-detail {
+  overflow-wrap: anywhere;
+}
+
+.record-detail .box {
+  border-radius: 22px;
+  background: linear-gradient(155deg, rgba(255, 255, 255, .048), rgba(255, 255, 255, .016));
+  border-color: var(--line);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), 0 14px 36px rgba(0, 0, 0, .36);
+  padding: 20px;
+}
+
+.record-detail .filled {
+  background: var(--accent-soft);
+  border-bottom-color: var(--accent);
+}
+
+.record-detail .token, .record-detail .filled {
+  border-radius: 4px;
+  padding-inline: 4px;
+}
+
+#shell .btn, dialog .btn, dialog .closebtn {
+  border-radius: 999px;
+}
+
+dialog {
+  border-radius: 22px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), 0 20px 50px rgba(0, 0, 0, .45);
+}
+
+dialog::backdrop {
+  background: rgba(0, 0, 0, .7);
+  backdrop-filter: blur(12px);
+}
+
+#palette {
+  width: min(36rem, 94vw);
+  margin: 4rem auto auto;
+}
+
+#paletteSpaceName {
+  color: var(--accent);
+}
+
+#toast {
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+:root[data-theme="light"] {
+  --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
+  --accent-border: color-mix(in srgb, var(--accent) 40%, transparent);
+  --orb-1: color-mix(in srgb, var(--accent) 17%, transparent);
+  --orb-2: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+[data-theme="light"] #shell :is(.text-white, .text-zinc-200, .text-zinc-300),
+[data-theme="light"] #palette :is(.text-white, .text-zinc-200, .text-zinc-300) {
+  color: var(--text);
+}
+
+[data-theme="light"] #shell :is(.text-zinc-400, .text-zinc-500),
+[data-theme="light"] #palette :is(.text-zinc-400, .text-zinc-500) {
+  color: var(--muted);
+}
+
+[data-theme="light"] :is(.glass-input, .space-switch, .pill-btn:not(.pill-primary), .kbd),
+[data-theme="light"] #shell :is(.bg-black\/40, .bg-white\/10) {
+  background: rgba(0, 0, 0, .06);
+  border-color: var(--line);
+}
+
+[data-theme="light"] :is(.glass-box, .record-detail .box) {
+  background: var(--card);
+  border-color: var(--line);
+  box-shadow: 0 10px 28px rgba(53, 43, 24, .09);
+}
+
+[data-theme="light"] .glass-panel {
+  box-shadow: 0 12px 35px rgba(53, 43, 24, .1);
+}
+
+[data-theme="light"] :is(.nav-item:hover, .entry-row:hover, .cal-day) {
+  border-color: var(--line);
+}
+
+@media (min-width: 1024px) {
+  #shell .sidebar-new {
+    display: none;
+  }
+
+  #shell {
+    align-items: start;
+  }
+}
+
+@media (max-width: 1023px) {
+  #shell {
+    align-content: start;
+  }
+
+  #items {
+    max-height: 23rem;
+  }
+}
+
+@media (max-width: 420px) {
+  #listTitle {
+    font-size: 1.6rem;
+  }
+
+  #newBtn {
+    padding-inline: .6rem;
+  }
+}

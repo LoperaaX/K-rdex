@@ -71,19 +71,19 @@ function toast(msg){
 }
 function errorMessage(e){return e?.message || "No se pudo completar la operación."}
 const sysLight=matchMedia("(prefers-color-scheme: light)");
-const themePref=()=>{const v=local.get("tema","auto");return v==="light"||v==="dark"?v:"auto"};
+const themePref=()=>{const v=local.get("tema","dark");return v==="light"||v==="auto"?v:"dark"};
 function setTheme(pref){
   if(pref!=="light"&&pref!=="dark")pref="auto";
   local.set("tema",pref);
   const t=pref==="auto"?(sysLight.matches?"light":"dark"):pref;
   root.dataset.theme=t;
-  $('meta[name="theme-color"]').content=t==="dark"?"#101013":"#f6f5f2";
+  $('meta[name="theme-color"]').content=t==="dark"?"#0c0c0f":"#f6f5f2";
   document.querySelectorAll("[data-theme-opt]").forEach(b=>
     b.setAttribute("aria-pressed",b.dataset.themeOpt===pref));
 }
 sysLight.addEventListener?.("change",()=>{if(themePref()==="auto")setTheme("auto")});
 function clearSelection(){
-  S.selected=null; S.variables.clear(); $("#shell").classList.remove("reading");
+  S.selected=null; S.variables.clear();
 }
 function resetFilters(){
   clearSelection(); S.group=""; S.chip=""; S.q=""; S.day=""; $("#q").value="";
@@ -92,18 +92,24 @@ function switchSpace(space){
   resetFilters(); S.space=space==="uni"?"uni":space==="personal"?"personal":"soporte";
   S.view=isUni()?"resumen":"all"; root.dataset.space=S.space;
   if(S.user)local.set("kx-space-"+S.user.id,S.space);
-  $("#shell").classList.remove("navopen"); render();
+  render();
 }
 function changeView(v){
   clearSelection(); S.view=v; S.chip=""; S.q=""; S.day=""; $("#q").value="";
-  $("#shell").classList.remove("navopen"); render();
+  render();
 }
 function openRecord(k,id){
   if(!find(k,id))return;
   if(k==="materia"){S.group=id;openSemFor(id);changeView("resumen");return}
   clearSelection(); S.selected={k,id};
-  $("#shell").classList.remove("navopen"); $("#shell").classList.add("reading");
-  render(); $("#detail").scrollTop=0;
+  render();
+  focusDetail();
+}
+function focusDetail(){
+  const detail = $("#detail");
+  detail.focus({preventScroll:true});
+  const stacked = matchMedia("(max-width: 1023px)").matches;
+  detail.scrollIntoView({block:stacked ? "start" : "nearest"});
 }
 function matches(k,r,q){
   const h=norm([titleOf(r),r.contenido,r.descripcion,plain(r.resumen),r.cierre,
@@ -188,8 +194,8 @@ $("#login").onsubmit=async e=>{
 
 // ───────────── Navegación y lista ─────────────
 function navButton(attr,value,label,on,count=""){
-  return `<button class="nav ${on?"on":""}" data-${attr}="${esc(value)}" aria-pressed="${on}">
-    <span>${esc(label)}</span><small>${esc(count)}</small></button>`;
+  return `<button class="nav-item ${on?"active":""}" data-${attr}="${esc(value)}" aria-pressed="${on}">
+    <span class="truncate">${esc(label)}</span><small class="text-xs opacity-75">${esc(count)}</small></button>`;
 }
 function semKeyOf(id){return find("materia",id)?.semestre?.trim()||"Sin semestre"}
 function openSemFor(id){if(id)S.semOpen.add(semKeyOf(id))}
@@ -227,25 +233,31 @@ function renderSide(){
   document.querySelectorAll("button[data-space]").forEach(b=>
     b.setAttribute("aria-pressed",b.dataset.space===S.space));
   const views=isUni()?uniViews:isPersonal()?{all:"Todo",fijadas:"Fijadas"}:{all:"Todo",fijadas:"Fijadas",...types};
-  $("#nav").innerHTML=Object.entries(views).map(([v,t])=>navButton("view",v,t,S.view===v)).join("");
+  $("#spaceSubtitle").textContent = {soporte:"Soporte Técnico", uni:"Universidad", personal:"Uso Personal"}[S.space];
+  const records = isPersonal() ? S.data.personal : S.data.soporte;
+  const counts = isUni()
+    ? {clase:S.data.clase.length, actividad:S.data.tarea.filter(r => r.tipo === "actividad").length,
+      evaluacion:S.data.tarea.filter(r => r.tipo === "evaluacion").length}
+    : {all:records.length, fijadas:records.filter(r => r.fijado).length,
+      ...Object.fromEntries(Object.keys(types).map(kind => [kind, records.filter(r => r.tipo === kind).length]))};
+  $("#nav").innerHTML = Object.entries(views).map(([v,t]) => navButton("view",v,t,S.view===v,counts[v])).join("");
   $("#groupTitle").textContent=isUni()?"Materias":isPersonal()?"Categorías":"Aplicaciones";
   $("#addSubject").hidden=!isUni();
   const groupSrc=isPersonal()?unique(S.data.personal.map(r=>r.categoria)):unique(S.data.soporte.map(r=>r.aplicacion));
   $("#groups").innerHTML=isUni()?semesterGroupsHtml():
-    (groupSrc.map(x=>navButton("group",x,x,S.group===x,S.group===x?"×":"")).join("")||
+    (groupSrc.map(x=>navButton("group",x,x,S.group===x,S.group===x?"×":records.filter(r => (isPersonal() ? r.categoria : r.aplicacion) === x).length)).join("")||
     `<p class="empty">Aún no hay elementos.</p>`);
 }
 function rowHtml(k,r){
-  const dot=k==="personal"?`<span class="catdot" style="background:${personalColor(r.categoria)}"></span>`:"";
   const meta=k==="soporte"?`${r.aplicacion} · ${singular[r.tipo]||"Entrada"}`:
     k==="personal"?(r.categoria||"Personal"):
     k==="materia"?"Materia":`${subject(r.materia_id)} · ${dateText(r.fecha)}`;
   const desc=k==="soporte"?r.descripcion||r.contenido:k==="personal"?(r.dato_clave||r.contenido):k==="clase"?r.modulo||plain(r.resumen):
     k==="materia"?r.semestre:states[r.estado];
   const selected=S.selected?.k===k&&uid(S.selected.id)===uid(r.id);
-  return `<button class="row ${selected?"on":""}" data-open="${k}" data-id="${esc(r.id)}">
-    <small>${dot}${esc(meta)}</small><b>${r.fijado?"◆ ":""}${esc(titleOf(r))}</b>
-    <span class="snip">${esc(desc||"")}</span></button>`;
+  return `<button class="entry-row ${selected?"active":""}" aria-pressed="${selected}" data-open="${k}" data-id="${esc(r.id)}">
+    <small class="text-[11px] text-zinc-400 truncate">${esc(meta)}</small><b class="text-[13.5px] font-semibold text-white truncate">${r.fijado?"◆ ":""}${esc(titleOf(r))}</b>
+    <span class="text-xs text-zinc-400 truncate">${esc(desc||"")}</span></button>`;
 }
 function relevantErrors(){
   const pers=["personal","moto","compras"];
@@ -264,12 +276,12 @@ function renderList(){
   ).map(r=>k==="clase"?r.modulo:r.categoria)).map(v=>[v,v]);
   if(!chips.some(([v])=>v===S.chip))S.chip="";
   const sel=$("#chipSel"),all=!isUni()?"Todas las categorías":k==="clase"?"Todos los módulos":"Todos los estados";
-  sel.hidden=!chips.length;
+  sel.hidden=k!=="soporte"&&!chips.length;
   sel.innerHTML=option("",all,S.chip)+chips.map(([v,t])=>option(v,t,S.chip)).join("");
   const l=entries();
-  $("#listCount").textContent=S.loading?"Cargando…":`${l.length} registros`;
+  $("#listCount").textContent=S.loading?"Cargando…":`${l.length} ${l.length===1?"registro":"registros"}`;
   $("#items").innerHTML=l.map(([t,r])=>rowHtml(t,r)).join("")||
-    `<p class="empty">${S.loading?"Cargando…":"No hay registros en esta vista."}</p>`;
+    `<p class="text-xs text-zinc-500 p-4">${S.loading?"Cargando…":"No hay registros en esta vista."}</p>`;
 }
 function loadAlert(){
   const errors=relevantErrors();if(!errors.length)return "";
@@ -292,21 +304,30 @@ function formatted(t){
     return val?`<mark class="filled">${esc(val)}</mark>`:`<mark class="token">{{${esc(s)}}}</mark>`;
   }).join("");
 }
-function templateBox(r,linked=false){
-  const vars=variableNames((r.contenido||"")+"\n"+(r.cierre||""));
-  return `<section class="box">
-    <p class="eyebrow">${linked?"Plantilla vinculada":"Plantilla"}</p>
-    ${linked?`<h3>${esc(r.titulo)}</h3>`:""}
-    ${vars.length?`<div class="fields">${vars.map(v=>`<label class="field"><span>${esc(v)}</span>
-      <input data-var="${esc(v)}" value="${esc(S.variables.get(v)||"")}" autocomplete="off">
-      </label>`).join("")}</div>`:""}
-    <div class="doc mono" data-preview="contenido">${formatted(r.contenido)}</div>
-    <div class="actions">${action("copytpl","Copiar plantilla","btn primary")}
-    ${vars.length?action("clearvars","Limpiar campos"):""}</div>
-    ${r.cierre?`<p class="eyebrow">Cierre de la plantilla</p>
+
+function templateBox(r, linked = false){
+  const vars = variableNames((r.contenido || "") + "\n" + (r.cierre || ""));
+  return `
+    ${linked ? `<div><p class="eyebrow">Plantilla vinculada</p><h3>${esc(r.titulo)}</h3></div>` :
+      r.descripcion ? `<p class="doc text-zinc-300">${esc(r.descripcion)}</p>` : ""}
+    ${vars.length ? `<section class="glass-box p-5 space-y-3">
+      <p class="eyebrow">Variables de la plantilla (vista previa en vivo)</p>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">${vars.map(v => `
+        <label class="field"><span>${esc(v)}</span>
+          <input class="glass-input" data-var="${esc(v)}" value="${esc(S.variables.get(v) || "")}" placeholder="Completar ${esc(v)}…" autocomplete="off">
+        </label>`).join("")}</div>
+      ${action("clearvars", "Limpiar campos")}
+    </section>` : ""}
+    <section class="glass-box p-5 space-y-2">
+      <p class="eyebrow">Contenido</p>
+      <div class="doc mono" data-preview="contenido">${formatted(r.contenido)}</div>
+      ${linked ? action("copytpl", "Copiar plantilla", "btn primary") : ""}
+    </section>
+    ${r.cierre ? `<section class="glass-box p-5 space-y-2">
+      <p class="eyebrow">Cierre del ticket</p>
       <div class="doc mono" data-preview="cierre">${formatted(r.cierre)}</div>
-      <div>${action("copytplend","Copiar cierre de plantilla")}</div>`:""}
-    </section>`;
+      ${linked ? action("copytplend", "Copiar cierre de plantilla") : ""}
+    </section>` : ""}`;
 }
 function activeTemplate(){
   const r=current();if(S.selected?.k!=="soporte"||!r)return null;
@@ -339,16 +360,9 @@ function supportDetail(r){
   }else{
     html+=`<div class="box doc">${prose(r.contenido)||"Sin notas."}</div>`;
   }
-  if(r.contenido)html+=`<div>${action("copy","Copiar "+(r.tipo==="proceso"?"pasos":"nota"))}</div>`;
   if(r.cierre)html+=`<div class="box"><p class="eyebrow">Cierre del ticket</p>
-    <div class="doc">${esc(r.cierre)}</div><div>${action("copyend","Copiar cierre")}</div></div>`;
+    <div class="doc mono">${esc(r.cierre)}</div></div>`;
   return html;
-}
-const PERSONAL_PALETTE=["#c77b4a","#a2522a","#caa06a","#8a6a4e","#d08c5d","#6b4a33"];
-function personalColor(cat){
-  const key=cat||"General";
-  let h=0;for(let i=0;i<key.length;i++)h=(h*31+key.charCodeAt(i))>>>0;
-  return PERSONAL_PALETTE[h%PERSONAL_PALETTE.length];
 }
 function personalSteps(r){return Array.isArray(r?.pasos)?r.pasos:[]}
 function mergeSteps(existing,linesText){
@@ -364,7 +378,6 @@ async function togglePersonalStep(idx){
 }
 function personalDetail(r){
   let html="";
-  if(r.dato_clave)html+=`<div class="chips"><span class="pill tagpill">${esc(r.dato_clave)}</span></div>`;
   html+=`<div class="box doc">${prose(r.contenido)||"Sin notas."}</div>`;
   html+=extLink(r.enlace_url,"Abrir enlace");
   const steps=personalSteps(r),done=steps.filter(p=>p.done).length;
@@ -372,7 +385,6 @@ function personalDetail(r){
     <progress value="${done}" max="${steps.length}"></progress>
     <small>${done} de ${steps.length} listos</small>
     ${steps.map((p,i)=>`<label class="step"><input type="checkbox" data-pstep="${i}" ${p.done?"checked":""} ${S.writing?"disabled":""}><span>${esc(p.text)}</span></label>`).join("")}</div>`;
-  if(r.contenido)html+=`<div>${action("copy","Copiar notas")}</div>`;
   return html;
 }
 async function copyText(text){
@@ -393,64 +405,162 @@ async function copyTemplate(field){
 }
 
 // ───────────── Universidad ─────────────
-function stats(items){
-  return `<div class="stats">${items.map(([v,t,n])=>
-    `<button class="stat" data-view="${v}"><b>${n}</b><span>${esc(t)}</span></button>`).join("")}</div>`;
-}
 function scopedTasksList(tasks){
   return tasks.length?tasks.map(r=>keyBtn("tarea",r,
     `${dateText(r.fecha)} · ${r.titulo} · ${r.tipo==="evaluacion"?"Evaluación":"Actividad"} · ${states[r.estado]}`)).join(""):
     `<p class="muted">No hay actividades para mostrar.</p>`;
 }
-function calendar(){
-  const month=new Date(S.month.getFullYear(),S.month.getMonth(),1);
-  const offset=(month.getDay()+6)%7;
-  const last=new Date(month.getFullYear(),month.getMonth()+1,0).getDate();
-  const tasks=scoped("tarea").filter(r=>r.fecha);
-  const prefix=isoDay(month).slice(0,7);
-  const monthTasks=tasks.filter(r=>r.fecha.startsWith(prefix)).sort((a,b)=>a.fecha.localeCompare(b.fecha));
-  const shown=S.day?monthTasks.filter(r=>r.fecha===S.day):monthTasks;
-  let cells=["L","M","X","J","V","S","D"].map(v=>`<small>${v}</small>`).join("")+"<span></span>".repeat(offset);
-  for(let i=1;i<=last;i++){
-    const date=prefix+"-"+pad(i),n=monthTasks.filter(r=>r.fecha===date).length;
-    cells+=`<button class="day ${n?"event":""} ${date===today()?"today":""} ${S.day===date?"chosen":""}" data-day="${date}"
-      aria-label="${esc(dateText(date))}${date===today()?" (hoy)":""}, ${n} eventos">${i}${n?" •":""}</button>`;
+function calendar(full = false) {
+  const y = S.month.getFullYear(), m = S.month.getMonth();
+  const firstDay = new Date(y, m, 1);
+  const offset = (firstDay.getDay() + 6) % 7;
+  const lastDate = new Date(y, m + 1, 0).getDate();
+  const prefix = `${y}-${String(m + 1).padStart(2, "0")}`;
+  const monthTasks = scoped("tarea").filter(t => t.fecha?.startsWith(prefix))
+    .sort((a,b) => a.fecha.localeCompare(b.fecha));
+  const todayIso = today();
+
+  let cells = ["L", "M", "X", "J", "V", "S", "D"].map(d => `<small class="text-center text-[11px] text-zinc-500 py-1">${d}</small>`).join("");
+  cells += `<span></span>`.repeat(offset);
+
+  for (let d = 1; d <= lastDate; d++) {
+    const iso = `${prefix}-${String(d).padStart(2, "0")}`;
+    const hasEv = monthTasks.some(t => t.fecha === iso);
+    const isToday = iso === todayIso;
+    const isChosen = S.day === iso;
+    cells += `
+      <button data-day="${iso}" aria-pressed="${isChosen}" aria-label="${esc(dateText(iso))}${isToday ? " (hoy)" : ""}${hasEv ? ", con entregas" : ""}" class="cal-day ${hasEv ? "has-event" : ""} ${isToday ? "is-today" : ""} ${isChosen ? "is-chosen" : ""}">
+        <span>${d}</span>
+        ${hasEv ? `<span class="text-[9px] leading-none">•</span>` : ""}
+      </button>
+    `;
   }
-  return `<div class="box"><div class="headrow">${action("prevmonth","‹","icon")}
-    <b class="grow">${esc(month.toLocaleDateString("es",{month:"long",year:"numeric"}))}</b>
-    ${action("nextmonth","›","icon")}</div><div class="cal">${cells}</div>
-    <small class="legend"><span class="sw ev"></span>Con entregas o evaluaciones<span class="sw td"></span>Hoy · Pulsa un día para filtrar.</small></div>
-    <div class="box"><div class="headrow"><p class="eyebrow grow">${S.day?dateText(S.day):"Agenda del mes"}</p>
-    ${S.day?action("alldays","Ver mes"):""}</div>${scopedTasksList(shown)}</div>`;
-}
-function uniHome(){
-  const classes=scoped("clase"),tasks=scoped("tarea");
-  const done=tasks.filter(r=>r.estado==="completada").length;
-  const matter=S.group&&find("materia",S.group);
-  const late=tasks.filter(r=>r.fecha&&r.fecha<today()&&r.estado!=="completada")
-    .sort((a,b)=>a.fecha.localeCompare(b.fecha));
-  return `<p class="eyebrow">${matter?esc(matter.semestre||"Materia"):"Universidad"}</p>
-    <h1>${esc(matter?matter.nombre:"Mi universidad")}</h1>
-    <div class="actions">${action("newclass","Nueva clase","btn primary")}
-    ${action("newtask","Nueva actividad")}${action("neweval","Nueva evaluación")}
+
+  const dayTasks = S.day ? monthTasks.filter(t => t.fecha === S.day) : monthTasks;
+
+  return `
+    <div class="glass-box p-5 space-y-3 h-full">
+      <div class="flex items-center justify-between">
+        <button data-act="prevmonth" aria-label="Mes anterior" class="pill-btn py-1 px-2.5 text-xs">‹</button>
+        <b class="text-xs sm:text-sm font-semibold capitalize text-white">
+          ${firstDay.toLocaleDateString("es", { month: "long", year: "numeric" })}
+        </b>
+        <button data-act="nextmonth" aria-label="Mes siguiente" class="pill-btn py-1 px-2.5 text-xs">›</button>
+      </div>
+      <div class="cal-grid">${cells}</div>
+      <p class="text-[11px] text-zinc-400">Pulsa un día marcado para ver sus entregas.</p>
+      ${S.day || full ? `
+        <div class="pt-2 border-t border-white/10 space-y-1.5">
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-zinc-300 font-medium">${S.day ? dateText(S.day) : "Agenda del mes"}</span>
+            ${S.day ? `<button data-act="alldays" class="text-[11px] underline" style="color: var(--accent);">Ver mes</button>` : ""}
+          </div>
+          ${dayTasks.length ? dayTasks.map(t => `
+            <button data-open="tarea" data-id="${esc(t.id)}" class="block w-full text-left text-xs p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-white">
+              ${esc(t.titulo)} · <span class="opacity-75">${states[t.estado] || "Pendiente"}</span>
+            </button>
+          `).join("") : `<p class="text-xs text-zinc-500">Sin entregas en este período.</p>`}
+        </div>
+      ` : ""}
     </div>
-    ${matter?`<div class="actions">${action("editsubject","Editar materia")}${action("delsubject","Borrar materia","btn danger")}</div>`:""}
-    ${stats([["clase","Clases",classes.length],["actividad","Actividades",tasks.filter(r=>r.tipo==="actividad").length],
-      ["evaluacion","Evaluaciones",tasks.filter(r=>r.tipo==="evaluacion").length]])}
-    <div class="box"><p class="eyebrow">Progreso de actividades y evaluaciones</p>
-    <progress max="${tasks.length||1}" value="${done}"></progress>
-    <small>${done} de ${tasks.length} completadas${tasks.length?" · "+Math.round(100*done/tasks.length)+"%":""}</small></div>
-    ${late.length?`<div class="box"><p class="eyebrow danger">Vencidas · ${late.length}</p>
-    ${scopedTasksList(late)}</div>`:""}
-    <div class="box"><p class="eyebrow">Próximas fechas</p>
-    ${scopedTasksList(tasks.filter(r=>r.fecha&&r.fecha>=today()&&r.estado!=="completada")
-      .sort((a,b)=>a.fecha.localeCompare(b.fecha)).slice(0,6))}
-    ${action("calendar","Abrir calendario")}</div>
-    <div class="box"><p class="eyebrow">Últimas clases</p>
-    ${classes.length?classes.sort((a,b)=>b.fecha.localeCompare(a.fecha)).slice(0,5)
-      .map(r=>keyBtn("clase",r,`${dateText(r.fecha)} · ${r.titulo}`)).join(""):
-      `<p class="muted">Crea una materia y guarda tu primera clase.</p>`}</div>`;
+  `;
 }
+
+function uniHome() {
+  const matter = find("materia", S.group);
+  const classes = scoped("clase").sort((a,b) => (b.fecha || "").localeCompare(a.fecha || ""));
+  const tasks = scoped("tarea");
+  const upcoming = tasks.filter(t => t.fecha && t.fecha >= today() && t.estado !== "completada")
+    .sort((a,b) => a.fecha.localeCompare(b.fecha));
+  const late = tasks.filter(t => t.fecha && t.fecha < today() && t.estado !== "completada")
+    .sort((a,b) => a.fecha.localeCompare(b.fecha));
+  const done = tasks.filter(t => t.estado === "completada").length;
+  const pct = tasks.length ? Math.round((done / tasks.length) * 100) : 0;
+
+  return `
+    <div class="max-w-4xl mx-auto space-y-5">
+      <div>
+        <p class="text-[11px] uppercase tracking-widest font-semibold text-zinc-400">${matter ? esc(matter.semestre || "Materia") : "UNIVERSIDAD"}</p>
+        <h1 class="font-serif-editorial text-4xl sm:text-5xl text-white">${matter ? esc(matter.nombre) : "Mi universidad"}</h1>
+      </div>
+
+      <div class="flex flex-wrap gap-2">
+        <button data-act="newclass" class="pill-btn pill-primary text-xs">Nueva clase</button>
+        <button data-act="newtask" class="pill-btn text-xs">Nueva actividad</button>
+        <button data-act="neweval" class="pill-btn text-xs">Nueva evaluación</button>
+      </div>
+
+      ${matter ? `<div class="actions">${action("editsubject", "Editar materia")}${action("delsubject", "Borrar materia", "btn danger")}</div>` : ""}
+
+      <!-- KPIs Académicos -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+        <button data-view="clase" class="glass-box glass-box-interactive p-5 text-left">
+          <b class="font-serif-editorial text-4xl block" style="color: var(--accent);">${classes.length}</b>
+          <span class="text-xs font-medium text-zinc-300">Clases</span>
+        </button>
+        <button data-view="actividad" class="glass-box glass-box-interactive p-5 text-left">
+          <b class="font-serif-editorial text-4xl block" style="color: var(--accent);">${tasks.filter(t => t.tipo === "actividad").length}</b>
+          <span class="text-xs font-medium text-zinc-300">Actividades</span>
+        </button>
+        <button data-view="evaluacion" class="glass-box glass-box-interactive p-5 text-left">
+          <b class="font-serif-editorial text-4xl block" style="color: var(--accent);">${tasks.filter(t => t.tipo === "evaluacion").length}</b>
+          <span class="text-xs font-medium text-zinc-300">Evaluaciones</span>
+        </button>
+      </div>
+
+      <!-- Barra de Progreso General -->
+      <div class="glass-box p-5 space-y-2.5">
+        <div class="flex items-center justify-between">
+          <p class="text-[11px] uppercase tracking-wider font-semibold text-zinc-400">Progreso de actividades y evaluaciones</p>
+          <span class="text-xs font-semibold" style="color: var(--accent);">${pct}%</span>
+        </div>
+        <div class="w-full h-2.5 rounded-full bg-white/10 overflow-hidden">
+          <div class="h-full rounded-full transition-all duration-300" style="width: ${pct}%; background: var(--accent);"></div>
+        </div>
+        <small class="text-xs text-zinc-400 block">${done} de ${tasks.length} completadas · ${pct}%</small>
+      </div>
+
+      <!-- Bento Académico: Próximas fechas + Mini Calendario interactivo -->
+      <div class="grid grid-cols-1 xl:grid-cols-12 gap-4">
+        <div class="xl:col-span-7 glass-box p-5 flex flex-col justify-between space-y-4">
+          <div>
+            <p class="text-[11px] uppercase tracking-wider font-semibold text-zinc-400 mb-3">Próximas fechas y entregas</p>
+            <div class="divide-y divide-white/10">
+              ${upcoming.length ? upcoming.map(t => `
+                <div class="py-3 flex items-center justify-between gap-3">
+                  <button data-open="tarea" data-id="${esc(t.id)}" class="text-left min-w-0 flex-1 cursor-pointer">
+                    <span class="text-xs text-zinc-400 block">${dateText(t.fecha)} · ${esc(subject(t.materia_id))}</span>
+                    <b class="text-xs sm:text-sm font-semibold text-white truncate block hover:underline">${esc(t.titulo)}</b>
+                  </button>
+                  <button data-cycle-task="${esc(t.id)}" ${S.writing ? "disabled" : ""} title="Clic para cambiar estado" class="pill-tag shrink-0 cursor-pointer">
+                    ${states[t.estado] || "Pendiente"}
+                  </button>
+                </div>
+              `).join("") : `<p class="text-xs text-zinc-400">No hay próximas entregas.</p>`}
+            </div>
+          </div>
+          ${late.length ? `<div><p class="eyebrow">Entregas vencidas</p>${scopedTasksList(late)}</div>` : ""}
+          <button data-view="calendario" class="pill-btn w-full text-xs">Abrir calendario completo</button>
+        </div>
+
+        <div class="xl:col-span-5">
+          ${calendar()}
+        </div>
+      </div>
+
+      <!-- Últimas clases -->
+      <div class="glass-box p-5 space-y-2">
+        <p class="text-[11px] uppercase tracking-wider font-semibold text-zinc-400">Últimas clases</p>
+        ${classes.length ? classes.slice(0, 5).map(c => `
+          <button data-open="clase" data-id="${esc(c.id)}" class="w-full text-left py-2.5 border-b border-white/10 last:border-0 hover:text-white text-zinc-300 text-xs sm:text-sm cursor-pointer">
+            ${dateText(c.fecha)} · <strong class="text-white">${esc(c.titulo)}</strong>
+          </button>
+        `).join("") : `<p class="text-xs text-zinc-400">Aún no hay clases.</p>`}
+      </div>
+    </div>
+  `;
+}
+
 function academicDetail(k,r){
   if(k==="clase"){
     const related=S.data.tarea.filter(a=>uid(a.clase_id)===uid(r.id));
@@ -468,57 +578,249 @@ function academicDetail(k,r){
     ${extLink(r.archivo_url,"Abrir archivo en OneDrive")}
     ${c?keyBtn("clase",c,"Ver clase de origen: "+c.titulo):""}</div>`;
 }
-function personalDonutHtml(){
-  const total=S.data.personal.length;
-  if(!total)return `<div class="box"><p class="eyebrow">Distribución personal</p>
-    <p class="muted">Crea tu primera entrada para ver la distribución por categoría.</p></div>`;
-  const cats=unique(S.data.personal.map(r=>r.categoria||"Sin categoría")).map(cat=>
-    ({cat,count:S.data.personal.filter(r=>(r.categoria||"Sin categoría")===cat).length}));
-  const rad=52,C=2*Math.PI*rad,gap=cats.length>1?8:0,usable=Math.max(C-gap*cats.length,0);
-  let off=0;
-  const segs=cats.map(({cat,count})=>{
-    const len=Math.max((count/total)*usable,4),dash=`${len} ${C-len}`,doff=-off;
-    off+=len+gap;
-    return `<circle cx="70" cy="70" r="${rad}" fill="none" stroke="${personalColor(cat)}"
-      stroke-width="${S.group===cat?15:12}" stroke-linecap="round"
-      stroke-dasharray="${dash}" stroke-dashoffset="${doff}"></circle>`;
+
+function chartGroups(records, field, palette){
+  const counts = new Map();
+  for (const record of records) {
+    const group = record[field] || "";
+    counts.set(group, (counts.get(group) || 0) + 1);
+  }
+  return [...counts.keys()].sort((a,b) => a.localeCompare(b, "es")).map((group, i) => ({
+    group,
+    label:group || (field === "categoria" ? "Sin categoría" : "Sin aplicación"),
+    count:counts.get(group),
+    color:palette[i % palette.length]
+  }));
+}
+function chartSegments(groups, total, radius){
+  const circumference = 2 * Math.PI * radius;
+  const gap = groups.length > 1 ? Math.min(8, circumference / (2 * total)) : 0;
+  const usable = circumference - gap * groups.length;
+  let offset = 0;
+  return groups.map(({group, count, color}) => {
+    const length = count / total * usable;
+    const segment = `<circle cx="70" cy="70" r="${radius}" fill="none" stroke="${color}"
+      stroke-width="${group && S.group === group ? 15 : 12}" stroke-linecap="round"
+      stroke-dasharray="${length} ${circumference - length}" stroke-dashoffset="${-offset}"
+      ${group ? `class="donut-seg" data-group="${esc(group)}"` : ""}></circle>`;
+    offset += length + gap;
+    return segment;
   }).join("");
-  const legend=cats.map(({cat,count})=>{
-    const pct=Math.round(100*count/total);
-    return `<button type="button" class="donutrow ${S.group===cat?"on":""}" data-group="${esc(cat)}">
-      <span class="catdot" style="background:${personalColor(cat)}"></span>
-      <span class="grow">${esc(cat)}</span><small>${pct}%</small><b>${count}</b></button>`;
+}
+function chartLegend(groups, total){
+  return groups.map(({group, label, count, color}) => {
+    const attrs = group ? `data-group="${esc(group)}" aria-pressed="${S.group === group}"` : "";
+    const tag = group ? "button" : "div";
+    return `<${tag} ${attrs} class="chart-legend w-full flex items-center justify-between ${total ? "px-3 py-2" : "px-2.5 py-1.5"} rounded-xl text-xs hover:bg-white/[0.06] transition">
+      <span class="flex min-w-0 items-center gap-2">
+        <span class="${total ? "w-2.5 h-2.5" : "w-2 h-2"} rounded-full shrink-0" style="background:${color}"></span>
+        <span class="truncate text-zinc-200 ${total ? "font-medium" : ""}">${esc(label)}</span>
+      </span>
+      <span class="flex items-center gap-2">
+        ${total ? `<small class="text-zinc-400">${Math.round(100 * count / total)}%</small>` : ""}
+        <b class="px-2 py-0.5 rounded-full bg-black/40 ${total ? "text-white" : "text-zinc-300"}">${count}</b>
+      </span>
+    </${tag}>`;
   }).join("");
-  return `<div class="box donutbox"><p class="eyebrow">Distribución personal</p>
-    <div class="donutwrap"><svg viewBox="0 0 140 140" class="donutsvg">
-      <circle cx="70" cy="70" r="${rad}" fill="none" stroke="var(--line)" stroke-width="12"></circle>${segs}</svg>
-      <div class="donutcenter"><b>${total}</b><span>${total===1?"Entrada":"Entradas"}</span><small>${cats.length} categorías</small></div>
-    </div><div class="donutlegend">${legend}</div></div>`;
 }
-function motoWidgetHtml(){
-  const m=S.data.moto[0];
-  if(!m)return `<div class="box"><p class="eyebrow">Garaje moto</p>
-    <p class="muted">Registra el kilometraje de tu moto para ver aquí cuánto falta para el próximo mantenimiento.</p>
-    <div>${action("moto","+ Registrar kilometraje","btn primary")}</div></div>`;
-  const pct=m.km_objetivo?Math.min(100,Math.round(100*(m.km_actual||0)/m.km_objetivo)):0;
-  const falta=(m.km_objetivo!=null&&m.km_actual!=null)?Math.max(0,m.km_objetivo-m.km_actual):null;
-  return `<div class="box"><div class="headrow"><p class="eyebrow grow">Garaje moto</p>${action("moto","Editar")}</div>
-    <div class="stack"><div class="headrow"><span class="muted">Kilometraje</span>
-    <b>${m.km_actual??"—"}${m.km_objetivo?` / ${m.km_objetivo} km`:""}</b></div>
-    <progress value="${pct}" max="100"></progress>
-    ${falta!=null?`<small class="muted">Faltan ~${falta} km para el próximo servicio.</small>`:""}
-    ${m.nota?`<small class="muted">${esc(m.nota)}</small>`:""}</div></div>`;
+function motoWidgetHtml(moto, pct){
+  if (!moto) return `<div class="glass-box p-5 space-y-3">
+    <p class="eyebrow">Garaje moto</p>
+    <p class="text-xs text-zinc-400">Registra el kilometraje para ver cuánto falta para el próximo mantenimiento.</p>
+    ${action("moto", "+ Registrar kilometraje", "pill-btn pill-primary text-xs")}
+  </div>`;
+  const remaining = moto.km_objetivo == null ? null : Math.max(0, moto.km_objetivo - (moto.km_actual || 0));
+  return `<div class="glass-box p-5 space-y-3">
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <p class="text-[11px] uppercase tracking-wider font-semibold text-zinc-400">Garaje moto</p>
+      <div class="flex gap-2">
+        ${action("moto", "Editar", "pill-btn text-xs py-1 px-3")}
+        <button type="button" data-act="bumpmoto" class="pill-btn text-xs py-1 px-3" ${S.writing ? "disabled" : ""}>+100 km</button>
+      </div>
+    </div>
+    <div class="flex items-center justify-between text-xs">
+      <span class="text-zinc-400">Kilometraje</span>
+      <b class="text-white">${esc(moto.km_actual ?? "—")}${moto.km_objetivo ? " / " + esc(moto.km_objetivo) : ""} km</b>
+    </div>
+    <div class="w-full h-2.5 rounded-full bg-white/10 overflow-hidden" role="progressbar" aria-label="Kilometraje para el próximo servicio" aria-valuenow="${pct}">
+      <div class="h-full rounded-full transition-all" style="width: ${pct}%; background: var(--accent);"></div>
+    </div>
+    <small class="block text-xs text-zinc-400">${remaining == null ? "" : `Faltan ~${remaining} km para el próximo servicio.`} ${esc(moto.nota)}</small>
+  </div>`;
 }
-function quickShopHtml(){
-  const items=S.data.compras,pend=items.filter(i=>!i.hecho).length;
-  return `<div class="box"><div class="headrow"><p class="eyebrow grow">Por comprar</p><span class="pill">${pend} pend.</span></div>
-    <div class="qslist">${items.length?items.map(i=>
-      `<button type="button" class="qsrow ${i.hecho?"done":""}" data-compra="${esc(i.id)}">
-        <span class="chk" aria-hidden="true">${i.hecho?"✓":""}</span><span>${esc(i.texto)}</span></button>`).join(""):
-      `<p class="muted">Sin pendientes.</p>`}</div>
-    <form id="qsForm" class="headrow"><input id="qsInput" placeholder="Añadir algo para comprar…" autocomplete="off">
-    <button class="btn primary">+</button></form></div>`;
+async function saveDashboardRecord(kind, record, values){
+  if (S.writing) return;
+  const epoch = S.epoch;
+  S.writing = true;
+  try {
+    const updated = await saveRow(kind, record.id, values);
+    if (epoch === S.epoch) upsertLocal(kind, updated);
+  } catch (err) {
+    if (epoch === S.epoch) toast(errorMessage(err));
+  } finally {
+    if (epoch === S.epoch) {
+      S.writing = false;
+      render();
+    }
+  }
 }
+
+function supportHome(){
+  const records = S.data.soporte;
+  const plantillas = records.filter(r => r.tipo === "plantilla").length;
+  const procesos = records.filter(r => r.tipo === "proceso").length;
+  const notas = records.filter(r => r.tipo === "nota").length;
+  const fijadas = records.filter(r => r.fijado);
+  const groups = chartGroups(records, "aplicacion", ["#e3c08d", "#caa06a", "#f2d6a9", "#b08852", "#8f6d3f", "#d8b47c"]);
+  const total = records.length;
+  const rad = 52;
+  return `
+    <div class="max-w-4xl mx-auto space-y-6">
+      <div>
+        <p class="text-[11px] uppercase tracking-widest font-semibold text-zinc-400 mb-1">SOPORTE TÉCNICO</p>
+        <h1 class="font-serif-editorial text-4xl sm:text-5xl text-white">Hola, <i class="italic">${esc(displayName())}</i>.</h1>
+        <p class="text-sm text-zinc-400 mt-1">Abre una entrada o busca por aplicación, título o contenido.</p>
+      </div>
+
+      <!-- KPIs de cristal interactivos -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+        <button data-view="plantilla" class="glass-box glass-box-interactive p-5 text-left">
+          <b class="font-serif-editorial text-4xl block" style="color: var(--accent);">${plantillas}</b>
+          <span class="text-xs font-medium text-zinc-300">Plantillas</span>
+        </button>
+        <button data-view="proceso" class="glass-box glass-box-interactive p-5 text-left">
+          <b class="font-serif-editorial text-4xl block" style="color: var(--accent);">${procesos}</b>
+          <span class="text-xs font-medium text-zinc-300">Procesos</span>
+        </button>
+        <button data-view="nota" class="glass-box glass-box-interactive p-5 text-left">
+          <b class="font-serif-editorial text-4xl block" style="color: var(--accent);">${notas}</b>
+          <span class="text-xs font-medium text-zinc-300">Aprendizajes</span>
+        </button>
+      </div>
+
+      <!-- Bento de Soporte: Distribución por Aplicación + Respuestas Fijadas a 1 clic -->
+      <div class="support-bento grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="glass-box p-5">
+          <p class="text-[11px] uppercase tracking-wider font-semibold text-zinc-400 mb-2">Distribución por Aplicación</p>
+          <div class="support-chart flex flex-col sm:flex-row items-center gap-4">
+            <div class="relative w-36 h-36 shrink-0">
+              <svg viewBox="0 0 140 140" class="w-full h-full -rotate-90">
+                <circle cx="70" cy="70" r="${rad}" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="12"></circle>
+                ${chartSegments(groups, total, rad)}
+              </svg>
+              <div class="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+                <b class="font-serif-editorial text-3xl text-white leading-none">${total}</b>
+                <span class="text-[11px] text-zinc-400">Entradas</span>
+              </div>
+            </div>
+            <div class="w-full space-y-1.5">
+              ${chartLegend(groups)}
+            </div>
+          </div>
+        </div>
+
+        <div class="glass-box p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <p class="text-[11px] uppercase tracking-wider font-semibold text-zinc-400">Acceso rápido · Fijadas</p>
+              <span class="pill-tag">${fijadas.length} fijadas</span>
+            </div>
+            <div class="space-y-2">
+              ${fijadas.length ? fijadas.map(item => `
+                <div class="p-3 rounded-2xl bg-white/[0.03] border border-white/[0.08] flex items-center justify-between gap-2">
+                  <button data-open="soporte" data-id="${esc(item.id)}" class="text-left min-w-0 flex-1 cursor-pointer">
+                    <span class="block text-[11px] text-zinc-400">${esc(item.aplicacion)}</span>
+                    <b class="block text-xs font-semibold text-white truncate hover:underline">${esc(item.titulo)}</b>
+                  </button>
+                  <button data-copy-support="${esc(item.id)}" class="pill-btn text-[11px] py-1 px-2.5 shrink-0" title="Copiar respuesta">
+                    Copiar
+                  </button>
+                </div>
+              `).join("") : `<p class="text-xs text-zinc-400">Aún no hay entradas fijadas.</p>`}
+            </div>
+          </div>
+          <p class="text-[11px] text-zinc-500 mt-3">Copia al instante sin abrir el ticket.</p>
+        </div>
+      </div>
+
+      <div class="glass-box p-4">
+        <p class="text-[11px] uppercase tracking-wider font-semibold text-zinc-400 mb-1">Atajos</p>
+        <p class="text-xs text-zinc-400">Ctrl / ⌘ K: buscar · N: nueva · /: filtrar · C: copiar · Shift C: copiar cierre · P: fijar</p>
+      </div>
+    </div>
+  `;
+}
+
+function personalHome(){
+  const records = S.data.personal;
+  const groups = chartGroups(records, "categoria", ["#c77b4a", "#a2522a", "#caa06a", "#d08c5d"]);
+  const total = records.length;
+  const rad = 52;
+  const moto = S.data.moto[0];
+  const motoPct = moto?.km_objetivo > 0 ? Math.max(0, Math.min(100, Math.round(100 * (moto.km_actual || 0) / moto.km_objetivo))) : 0;
+  const pendCompras = S.data.compras.filter(c => !c.hecho).length;
+  return `
+    <div class="max-w-4xl mx-auto space-y-5">
+      <div>
+        <p class="text-[11px] uppercase tracking-widest font-semibold text-zinc-400">PERSONAL</p>
+        <h1 class="font-serif-editorial text-4xl sm:text-5xl text-white">Hola, <i class="italic">${esc(displayName())}</i>.</h1>
+        <p class="text-sm text-zinc-400 mt-1">Guarda enlaces y notas tuyas, organizadas por categoría, como repuestos de tu moto.</p>
+      </div>
+
+      <div class="personal-bento grid grid-cols-1 md:grid-cols-12 gap-4">
+        <!-- Donut Particionado -->
+        <div class="md:col-span-6 glass-box p-5">
+          <p class="text-[11px] uppercase tracking-wider font-semibold text-zinc-400 mb-3">Distribución personal</p>
+          <div class="relative w-36 h-36 mx-auto my-2">
+            <svg viewBox="0 0 140 140" class="w-full h-full -rotate-90">
+              <circle cx="70" cy="70" r="${rad}" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="12"></circle>
+              ${chartSegments(groups, total, rad)}
+            </svg>
+            <div class="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+              <b class="font-serif-editorial text-3xl text-white leading-none">${total}</b>
+              <span class="text-xs text-zinc-400">Entradas</span>
+              <small class="text-[11px]" style="color: var(--accent);">${groups.length} categorías</small>
+            </div>
+          </div>
+          <div class="space-y-1.5 mt-4">
+            ${chartLegend(groups, total)}
+          </div>
+        </div>
+
+        <!-- Columna derecha: Garaje Moto + Por Comprar -->
+        <div class="md:col-span-6 space-y-4">
+          ${motoWidgetHtml(moto, motoPct)}
+          <div class="glass-box p-5 space-y-3">
+            <div class="flex items-center justify-between">
+              <p class="text-[11px] uppercase tracking-wider font-semibold text-zinc-400">Por comprar</p>
+              <span class="pill-tag">${pendCompras} pend.</span>
+            </div>
+            <div class="space-y-1.5">
+              ${S.data.compras.map(c => `
+                <button data-compra="${esc(c.id)}" aria-pressed="${!!c.hecho}" ${S.writing ? "disabled" : ""} class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-white/[0.05] text-left text-xs cursor-pointer">
+                  <span class="w-4 h-4 rounded flex items-center justify-center border ${c.hecho ? "border-transparent font-bold" : "border-white/25"}" style="${c.hecho ? "background: var(--accent); color: var(--on-accent);" : ""}">
+                    ${c.hecho ? "✓" : ""}
+                  </span>
+                  <span class="${c.hecho ? "line-through text-zinc-500" : "text-zinc-200"}">${esc(c.texto)}</span>
+                </button>
+              `).join("")}
+            </div>
+            <form id="qsForm" class="flex gap-2 pt-1">
+              <input id="qsInput" type="text" aria-label="Añadir algo para comprar" autocomplete="off" placeholder="Añadir algo para comprar…" class="glass-input flex-1 text-xs" />
+              <button type="submit" aria-label="Añadir compra" class="pill-btn pill-primary text-xs px-3.5">+</button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div class="glass-box p-4">
+        <p class="text-[11px] uppercase tracking-wider font-semibold text-zinc-400 mb-1">Atajos</p>
+        <p class="text-xs text-zinc-400">Ctrl / ⌘ K: buscar · N: nueva · /: filtrar · C: copiar · P: fijar</p>
+      </div>
+    </div>
+  `;
+}
+
 async function addCompra(texto){
   if(!texto||!texto.trim())return;
   const epoch=S.epoch;
@@ -540,39 +842,64 @@ async function toggleCompra(id){
   }catch(e){toast(errorMessage(e))}
   finally{S.writing=false;renderDetail()}
 }
+
 function renderDetail(){
-  const r=current(),k=S.selected?.k;
-  const dash=isUni()&&["resumen","calendario"].includes(S.view)&&!r;
-  $("#shell").classList.toggle("dashboard",dash);
-  const mobileMenu=`<button class="btn" data-act="menu">☰ Navegación</button>`;
-  let html="";
-  if(!r){
-    if(isUni()){
-      html+=S.view==="calendario"?`<p class="eyebrow">${S.group?esc(subject(S.group)):"Universidad"}</p><h1>Calendario</h1>${calendar()}`:uniHome();
-    }else if(isPersonal()){
-      html+=`<p class="eyebrow">Personal</p><h1>Hola, <i>${esc(displayName())}</i>.</h1>
-      <p class="muted">Guarda enlaces y notas tuyas, organizadas por categoría — por ejemplo, repuestos de tu moto.</p>
-      <div class="bento">${personalDonutHtml()}<div class="stack">${motoWidgetHtml()}${quickShopHtml()}</div></div>
-      <div class="box"><p class="eyebrow">Atajos</p><p class="muted">Ctrl / ⌘ K: buscar · N: nueva · /: filtrar · E: editar · C: copiar · P: fijar</p></div>`;
-    }else{
-      html+=`<p class="eyebrow">Soporte técnico</p><h1>Hola, <i>${esc(displayName())}</i>.</h1>
-      <p class="muted">Abre una entrada o busca por aplicación, título o contenido.</p>
-      ${stats(Object.entries(types).map(([k,t])=>[k,t,S.data.soporte.filter(r=>r.tipo===k).length]))}
-      <div class="box"><p class="eyebrow">Atajos</p><p class="muted">Ctrl / ⌘ K: buscar · N: nueva · /: filtrar · E: editar · C: copiar · Shift C: copiar cierre · P: fijar</p></div>`;
-    }
-  }else{
-    const meta=k==="soporte"?[singular[r.tipo],r.aplicacion,r.categoria]:
-      k==="personal"?[r.categoria]:
-      [k==="clase"?"Clase":r.tipo==="evaluacion"?"Evaluación":"Actividad",subject(r.materia_id),dateText(r.fecha),r.modulo];
-    html+=`<button id="back" class="btn" data-act="back">← Volver</button>
-      <div class="chips">${meta.filter(Boolean).map(t=>`<span class="pill">${esc(t)}</span>`).join("")}</div>
-      <h1>${esc(titleOf(r))}</h1><div class="actions">${action("edit","Editar")}
-      ${(k==="soporte"||k==="personal")?action("pin",r.fijado?"Desfijar":"Fijar"):""}${action("delete","Borrar","btn danger")}</div>
-      ${k==="personal"?personalDetail(r):k==="soporte"?supportDetail(r):academicDetail(k,r)}`;
+  const r = current(), k = S.selected?.k;
+  let html;
+  if (r) {
+    const meta = k === "soporte" ? [singular[r.tipo], r.aplicacion, r.categoria] :
+      k === "personal" ? [r.categoria, r.dato_clave] :
+      [k === "clase" ? "Clase" : r.tipo === "evaluacion" ? "Evaluación" : "Actividad",
+        subject(r.materia_id), dateText(r.fecha), r.modulo];
+    const pin = k === "soporte" || k === "personal";
+    const copyLabel = k === "personal" ? "Copiar notas (C)" :
+      r.tipo === "plantilla" ? "Copiar plantilla (C)" : "Copiar contenido (C)";
+    html = `<article class="max-w-3xl mx-auto space-y-5 record-detail">
+      <div class="flex flex-wrap items-center gap-2">
+        ${action("back", "← Volver", "pill-btn text-xs py-1 px-3")}
+        ${meta.filter(Boolean).map(t => `<span class="pill-tag">${esc(t)}</span>`).join("")}
+      </div>
+      <h1 class="font-serif-editorial text-4xl sm:text-5xl text-white leading-tight">${esc(titleOf(r))}</h1>
+      <div class="actions">
+        ${pin ? action("pin", r.fijado ? "◆ Desfijar (P)" : "Fijar (P)", "pill-btn text-xs") : ""}
+        ${pin && r.contenido ? action("copy", copyLabel, "pill-btn pill-primary text-xs") : ""}
+        ${k === "soporte" && r.cierre ? action("copyend", "Copiar cierre (Shift+C)", "pill-btn text-xs") : ""}
+        ${action("edit", "Editar")}${action("delete", "Borrar", "btn danger")}
+      </div>
+      ${k === "personal" ? personalDetail(r) : k === "soporte" ? supportDetail(r) : academicDetail(k,r)}
+    </article>`;
+  } else if (isUni() && S.view === "calendario") {
+    html = `<div class="max-w-4xl mx-auto space-y-5">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p class="text-[11px] uppercase tracking-widest font-semibold text-zinc-400">${S.group ? esc(subject(S.group)) : "Universidad"}</p>
+          <h1 class="font-serif-editorial text-4xl sm:text-5xl text-white">Calendario</h1>
+        </div>
+        <button type="button" data-view="resumen" class="pill-btn text-xs">← Volver a Resumen</button>
+      </div>
+      ${calendar(true)}
+    </div>`;
+  } else {
+    html = isUni() ? uniHome() : isPersonal() ? personalHome() : supportHome();
   }
-  $("#detail").innerHTML=`<div class="paper">${dash?`<div class="actions">${mobileMenu}</div>`:""}${loadAlert()}${html}</div>`;
-  const qf=$("#qsForm");
-  if(qf)qf.onsubmit=e=>{e.preventDefault();const v=$("#qsInput").value;$("#qsInput").value="";addCompra(v)};
+  $("#detail").innerHTML = loadAlert() + html;
+  const form = $("#qsForm");
+  if (form) form.onsubmit = async e => {
+    e.preventDefault();
+    if (S.writing) return;
+    const input = $("#qsInput");
+    const text = input.value.trim();
+    if (!text) return;
+    const button = form.querySelector("button");
+    button.disabled = true;
+    try {
+      await addCompra(text);
+    } catch (err) {
+      toast(errorMessage(err));
+    } finally {
+      button.disabled = false;
+    }
+  };
 }
 
 /*RT-START*/
@@ -830,11 +1157,13 @@ form.onsubmit=async e=>{
         if(k==="soporte"){S.view=data.tipo;S.steps.delete(uid(data.id))}
         else if(k==="personal"){S.view="all"}
         else{S.view=k==="clase"?"clase":data.tipo;S.group=data.materia_id}
-        S.selected={k,id:uid(data.id)};$("#shell").classList.add("reading");
+        S.selected={k,id:uid(data.id)};
       }
       }
     }
-    $("#editor").close();S.edit=null;render();toast("Cambios guardados.");
+    $("#editor").close();S.edit=null;render();
+    if(k!=="name"&&k!=="moto"&&S.selected)focusDetail();
+    toast("Cambios guardados.");
   }catch(err){$("#formErr").textContent=errorMessage(err)}
   finally{S.writing=false;$("#save").disabled=false}
 };
@@ -864,6 +1193,7 @@ async function removeCurrent(){
 // ───────────── Búsqueda y acciones ─────────────
 function palette(){
   if($("#editor").open)return;
+  $("#paletteSpaceName").textContent = {soporte:"Soporte",uni:"Universidad",personal:"Personal"}[S.space];
   $("#pq").value="";renderResults();$("#palette").showModal();$("#pq").focus();
 }
 function renderResults(){
@@ -925,12 +1255,10 @@ async function importData(file){
 }
 async function act(a){
   const r=current();
-  if(a==="menu")return $("#shell").classList.add("navopen");
-  if(a==="navclose")return $("#shell").classList.remove("navopen");
   if(a==="settings"){fillSettings();return $("#settings").showModal()}
   if(a==="setclose")return $("#settings").close();
   if(a==="recclose")return $("#recover").close();
-  if(a==="back"){clearSelection();render();return}
+  if(a==="back"){clearSelection();render();$("#listTitle").scrollIntoView({block:"nearest"});return}
   if(a==="cancel"){if(!S.writing&&discardOk())$("#editor").close();return}
   if(a==="palclose")return $("#palette").close();
   if(a==="theme")return setTheme(root.dataset.theme==="dark"?"light":"dark");
@@ -945,6 +1273,11 @@ async function act(a){
   if(a==="subject")return edit("materia");
   if(a==="editsubject")return edit("materia",find("materia",S.group));
   if(a==="moto")return edit("moto",S.data.moto[0]||null);
+  if(a==="bumpmoto"){
+    const moto = S.data.moto[0];
+    if (moto) return saveDashboardRecord("moto", moto, {km_actual:Number(moto.km_actual || 0) + 100});
+    return;
+  }
   if(a==="new")return newEntry();
   if(a==="newclass")return edit("clase");
   if(a==="newtask"||a==="neweval")return edit("tarea",null,{tipo:a==="neweval"?"evaluacion":"actividad"});
@@ -993,7 +1326,7 @@ async function act(a){
 function run(a){Promise.resolve(act(a)).catch(e=>toast(errorMessage(e)))}
 
 document.addEventListener("click",e=>{
-  const b=e.target.closest("button");if(!b)return;
+  const b=e.target.closest("button, .donut-seg[data-group]");if(!b)return;
   const d=b.dataset;
   if(d.cmd)return rtCmd(d.cmd);
   if(d.themeOpt)return setTheme(d.themeOpt);
@@ -1001,6 +1334,22 @@ document.addEventListener("click",e=>{
   if(d.space)return switchSpace(d.space);
   if(d.view)return changeView(d.view);
   if(d.compra){toggleCompra(d.compra);return}
+  if(d.copySupport){
+    const record = find("soporte", d.copySupport);
+    if (!record?.contenido) return toast("No hay texto que copiar.");
+    copyText(record.contenido).then(() => toast("Copiado al portapapeles."))
+      .catch(err => toast(errorMessage(err)));
+    return;
+  }
+  if(d.cycleTask){
+    const task = find("tarea", d.cycleTask);
+    if (!task) return;
+    const order = Object.keys(states);
+    const estado = order[(order.indexOf(task.estado) + 1) % order.length];
+    b.disabled = true;
+    saveDashboardRecord("tarea", task, {estado}).finally(() => {b.disabled = false});
+    return;
+  }
   if(d.semtoggle){
     S.semOpen.has(d.semtoggle)?S.semOpen.delete(d.semtoggle):S.semOpen.add(d.semtoggle);
     renderSide();return;
@@ -1066,16 +1415,15 @@ document.addEventListener("keydown",e=>{
   if((e.ctrlKey||e.metaKey)&&key==="k"){e.preventDefault();return run("search")}
   if(e.ctrlKey||e.metaKey||e.altKey||e.target.matches("input,textarea,select,[contenteditable]"))return;
   if(key==="escape"){
-    if($("#shell").classList.contains("navopen"))run("navclose");else run("back");
+    if(S.selected)run("back");
     return;
   }
   if(key==="/"){e.preventDefault();if($("#q").offsetParent)$("#q").focus();else run("search");return}
   if(key==="arrowdown"||key==="arrowup"){
-    if($("#shell").classList.contains("dashboard"))return;
     const l=entries();if(!l.length)return;
     const i=l.findIndex(([k,r])=>k===S.selected?.k&&uid(r.id)===uid(S.selected?.id));
     const j=i<0?(key==="arrowdown"?0:l.length-1):Math.max(0,Math.min(l.length-1,i+(key==="arrowdown"?1:-1)));
-    e.preventDefault();openRecord(l[j][0],l[j][1].id);$("#items .on")?.scrollIntoView({block:"nearest"});return;
+    e.preventDefault();openRecord(l[j][0],l[j][1].id);$("#items .active")?.scrollIntoView({block:"nearest"});return;
   }
   const a={n:"new",e:"edit",p:"pin",delete:"delete",c:e.shiftKey?"copyend":"copy"}[key];
   if(a){e.preventDefault();run(a)}
