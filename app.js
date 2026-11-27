@@ -1344,15 +1344,18 @@ function newEntry(){
   if(S.view==="calendario")return edit("tarea");
   return edit("clase");
 }
+const BACKUP_VERSION=4;
+const BACKUP_ORDER=["materia","clase","tarea","soporte","personal","moto","compras"];
 function exportData(){
+  if(S.writing)return toast("Espera a que termine el guardado.");
   if(S.loading||Object.keys(S.errors).length)return toast("Carga todos los datos antes de exportar.");
-  const data={version:3,fecha:today(),entradas:S.data.soporte,kx_materias:S.data.materia,
-    kx_clases:S.data.clase,kx_actividades:S.data.tarea,kx_personal:S.data.personal};
+  const data={version:BACKUP_VERSION,fecha:today()};
+  for(const kind of BACKUP_ORDER)data[table[kind]]=S.data[kind];
   const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:"application/json"}));
   const a=document.createElement("a");a.href=url;a.download=`kardex-${today()}.json`;
   document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
   if(S.user)local.set("kx-backup-"+S.user.id,new Date().toISOString());
-  toast("Copia exportada. Incluye ambos espacios, no los archivos externos.");
+  toast("Respaldo de Soporte, Universidad y Personal exportado.");
 }
 function backupInfo(){
   const iso=S.user?local.get("kx-backup-"+S.user.id,""):"";
@@ -1367,27 +1370,61 @@ function fillSettings(){
   $("#setUser").textContent=S.user?.email||"";
   $("#bkText").textContent=b.txt;$("#bkDot").classList.toggle("stale",b.stale);
 }
+function backupRows(data){
+  if(data?.version===2){
+    data={version:3,entradas:data.soporte,kx_materias:data.materia,kx_clases:data.clase,kx_actividades:data.tarea};
+  }
+  if(data?.version!==3&&data?.version!==BACKUP_VERSION){
+    throw Error("Formato no reconocido. Usa un archivo exportado desde Kárdex.");
+  }
+  return BACKUP_ORDER.map(kind=>{
+    const name=table[kind];
+    const source=data[name];
+    if(source===undefined)return [kind,[]];
+    if(!Array.isArray(source))throw Error(`El respaldo contiene datos inválidos en ${name}.`);
+    const rows=source.map(row=>{
+      if(!row||typeof row!=="object"||Array.isArray(row)||!uid(row.id)){
+        throw Error(`El respaldo contiene un registro sin identificador en ${name}.`);
+      }
+      const {user_id,...record}=row;
+      return record;
+    });
+    if(kind==="soporte"){
+      rows.sort((a,b)=>Number(b.tipo==="plantilla")-Number(a.tipo==="plantilla"));
+    }
+    return [kind,rows];
+  });
+}
 async function importData(file){
-  if(S.writing||S.loading)return toast("Espera a que termine la operación.");
-  let d;
-  try{d=JSON.parse(await file.text())}catch{throw Error("El archivo no es un JSON válido.")}
-  if(d?.version===2)d={version:3,entradas:d.soporte,kx_materias:d.materia,kx_clases:d.clase,kx_actividades:d.tarea};
-  if(d?.version!==3)throw Error("Formato no reconocido. Usa un archivo exportado desde Kárdex.");
-  const order=["kx_materias","kx_clases","kx_actividades","entradas","kx_personal"];
-  const total=order.reduce((n,t)=>n+(Array.isArray(d[t])?d[t].length:0),0);
+  if(!S.user||S.writing||S.loading)return toast("Espera a que termine la operación.");
+  const epoch=S.epoch,userId=S.user.id;
+  let data;
+  try{data=JSON.parse(await file.text())}catch{throw Error("El archivo no es un JSON válido.")}
+  if(epoch!==S.epoch||S.writing||S.loading)return;
+  const backup=backupRows(data);
+  const total=backup.reduce((n,[,rows])=>n+rows.length,0);
   if(!total)throw Error("El archivo no contiene registros.");
-  if(!confirm(`Se importarán ${total} registros. Los que tengan el mismo id se sobrescribirán. ¿Continuar?`))return;
-  const epoch=S.epoch;S.writing=true;
+  const moto=S.data.moto.length===1?S.data.moto[0]:null;
+  const restoresMoto=backup.some(([kind,rows])=>kind==="moto"&&rows.length===1);
+  const motoNote=moto&&restoresMoto?" También se actualizará el estado actual de tu moto.":"";
+  if(!confirm(`Se importarán ${total} registros. Los que tengan el mismo id se actualizarán.${motoNote} ¿Continuar?`))return;
+  S.writing=true;
   try{
-    for(const t of order){
-      const rows=(Array.isArray(d[t])?d[t]:[]).map(({user_id,...r})=>r);
+    for(const [kind,rows] of backup){
+      if(kind==="moto"&&moto&&rows.length===1)rows[0].id=moto.id;
       for(let i=0;i<rows.length;i+=200){
-        const {error}=await db.from(t).upsert(rows.slice(i,i+200),{onConflict:"id"});
-        if(error)throw Error(t+": "+error.message);
+        if(epoch!==S.epoch)return;
+        const {error}=await db.from(table[kind]).upsert(rows.slice(i,i+200),{onConflict:"id"});
+        if(error)throw Error(`No se pudo completar la importación (${table[kind]}): ${error.message}`);
       }
     }
-  }finally{S.writing=false}
-  if(epoch===S.epoch){await load();toast("Importación completada.")}
+  }finally{
+    if(epoch===S.epoch){
+      S.writing=false;
+      await load();
+    }
+  }
+  if(S.user?.id===userId)toast("Importación completada.");
 }
 async function act(a){
   const r=current();
@@ -1419,7 +1456,7 @@ async function act(a){
     if(S.writing)return toast("Espera a que termine el guardado.");
     const {error}=await db.auth.signOut();if(error)throw error;return;
   }
-  if(a==="reload"){if(!S.loading)await load();return}
+  if(a==="reload"){if(!S.loading&&!S.writing)await load();return}
   if(a==="name"){$("#settings").close();return edit("name")}
   if(a==="subject")return edit("materia");
   if(a==="editsubject")return edit("materia",find("materia",S.group));

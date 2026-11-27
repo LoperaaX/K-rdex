@@ -41,3 +41,9 @@ La interfaz se sirve como archivos estáticos. Si cambias las clases de Tailwind
 ## Copia de seguridad
 
 Abre Configuración desde tu perfil y elige **Exportar** en **Respaldo de datos**.
+La copia JSON incluye Soporte, Universidad y Personal, con el kilometraje y la
+lista de compras. Los documentos de OneDrive y Drive se respaldan mediante sus enlaces.
+
+**Importar** acepta copias de las versiones 2, 3 y 4. Actualiza los registros que
+coinciden con la copia y conserva los demás. Si el respaldo contiene el estado de
+la moto, actualiza el registro de la moto actual.
