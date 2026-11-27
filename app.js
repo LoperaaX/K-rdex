@@ -942,15 +942,61 @@ function renderDetail(){
 // ───────────── Notas con formato ─────────────
 const RT="\x3c!--rt-->";
 let rtSel=null,rtInit="";
-const OK_TAGS=new Set("P DIV BR B STRONG I EM U S STRIKE H1 H2 H3 UL OL LI BLOCKQUOTE A SPAN HR".split(" "));
+const OK_TAGS=new Set("P DIV BR B STRONG I EM U S STRIKE SUB SUP H1 H2 H3 UL OL LI BLOCKQUOTE PRE CODE A SPAN HR FONT".split(" "));
 const DROP_TAGS=new Set("SCRIPT STYLE IFRAME OBJECT EMBED LINK META NOSCRIPT TEMPLATE SVG MATH FORM INPUT BUTTON TEXTAREA SELECT".split(" "));
-const FAM=[["Instrument Serif","'Instrument Serif',Georgia,serif"],["Georgia","Georgia,serif"],["mono","ui-monospace,Consolas,monospace"],["Inter","Inter,system-ui,sans-serif"]];
+const FAM=[
+  ["Inter","Inter, system-ui, sans-serif"],
+  ["Arial","Arial, sans-serif"],
+  ["Calibri","Calibri, Arial, sans-serif"],
+  ["Verdana","Verdana, sans-serif"],
+  ["Georgia","Georgia, serif"],
+  ["Century","Century, Georgia, serif"],
+  ["Times New Roman","'Times New Roman', Georgia, serif"],
+  ["Instrument Serif","'Instrument Serif', Georgia, serif"],
+  ["Consolas","Consolas, ui-monospace, monospace"],
+  ["Monoespaciada","ui-monospace, Consolas, monospace"]
+];
+const RT_SIZES=[10,13,16,18,24,32,48];
+const RT_SIZE_NAMES=["x-small","small","medium","large","x-large","xx-large","xxx-large"];
+const RT_ALIGN={left:"justifyLeft",center:"justifyCenter",right:"justifyRight",justify:"justifyFull"};
 const colorOk=v=>/^(#[0-9a-f]{3,8}|rgba?\([\d\s,.%\/]+\))$/i.test(v||"");
+function noteFont(value){
+  const first=String(value||"").split(",")[0].trim().replace(/^['"]|['"]$/g,"").toLowerCase();
+  if(["mono","monospace","ui-monospace"].includes(first))return FAM.at(-1)[1];
+  return FAM.find(([name])=>name.toLowerCase()===first)?.[1];
+}
+function noteFontSize(value,legacy){
+  const keyword=value==="xx-small"?0:RT_SIZE_NAMES.indexOf(value);
+  const px=RT_SIZES[keyword] ?? (/^[1-7]$/.test(legacy||"") ? RT_SIZES[Number(legacy)-1] : null);
+  if(px!==null)return `${px}px`;
+  const numeric=/^(\d+(?:\.\d+)?)(px|pt)$/.exec(value);
+  if(!numeric)return "";
+  const size=Number(numeric[1])*(numeric[2]==="pt"?4/3:1);
+  return size>=8&&size<=96 ? value : "";
+}
 function cleanStyle(el){
-  const s=el.style,o=[],f=FAM.find(([k])=>(s.fontFamily||"").includes(k));
-  if(f)o.push("font-family:"+f[1]);
-  if(colorOk(s.color))o.push("color:"+s.color);
+  const s=el.style,o=[],legacyFont=el.tagName==="FONT";
+  const font=noteFont(s.fontFamily||(legacyFont&&el.getAttribute("face")));
+  const size=noteFontSize(s.fontSize,legacyFont&&el.getAttribute("size"));
+  const color=s.color||(legacyFont&&el.getAttribute("color"));
+  if(font)o.push("font-family:"+font);
+  if(size)o.push("font-size:"+size);
+  if(colorOk(color))o.push("color:"+color);
   if(colorOk(s.backgroundColor))o.push("background-color:"+s.backgroundColor);
+  const align=s.textAlign||el.getAttribute("align");
+  if(["left","center","right","justify","start","end"].includes(align))o.push("text-align:"+align);
+  if(["sub","super"].includes(s.verticalAlign))o.push("vertical-align:"+s.verticalAlign);
+  let hasIndent=false;
+  for(const property of ["margin-left","margin-right","margin-inline-start","margin-inline-end"]){
+    const indent=s.getPropertyValue(property);
+    if(/^\d{1,3}px$/.test(indent)&&parseInt(indent,10)<=320){
+      o.push(property+":"+indent);
+      hasIndent=true;
+    }
+  }
+  if(el.tagName==="BLOCKQUOTE"&&hasIndent&&(s.borderLeftStyle==="none"||s.borderLeftWidth==="0px")){
+    o.push("border:0","padding:0");
+  }
   if(/^(bold|[6-9]00)$/.test(s.fontWeight))o.push("font-weight:700");
   if(s.fontStyle==="italic")o.push("font-style:italic");
   const td=s.textDecorationLine||s.textDecoration||"",u=td.includes("underline"),l=td.includes("line-through");
@@ -965,11 +1011,18 @@ function cleanHtml(html){
       walk(el);
       if(!OK_TAGS.has(el.tagName)){el.replaceWith(...el.childNodes);continue}
       const style=cleanStyle(el),href=el.tagName==="A"?httpsUrl(el.getAttribute("href")):"";
-      for(const a of [...el.attributes])el.removeAttribute(a.name);
-      if(style)el.setAttribute("style",style);
-      if(el.tagName==="A"){
-        if(!href){el.replaceWith(...el.childNodes);continue}
-        el.setAttribute("href",href);el.setAttribute("target","_blank");el.setAttribute("rel","noopener noreferrer");
+      let target=el;
+      if(el.tagName==="FONT"){
+        target=doc.createElement("span");
+        target.append(...el.childNodes);
+        el.replaceWith(target);
+      }else{
+        for(const a of [...el.attributes])el.removeAttribute(a.name);
+      }
+      if(style)target.setAttribute("style",style);
+      if(target.tagName==="A"){
+        if(!href){target.replaceWith(...target.childNodes);continue}
+        target.setAttribute("href",href);target.setAttribute("target","_blank");target.setAttribute("rel","noopener noreferrer");
       }
     }
   })(doc.body);
@@ -988,41 +1041,69 @@ function rtValue(){
 }
 function rtCmd(cmd,val){
   const ed=$("#rtEd");if(!ed)return;
-  ed.focus();
-  if(rtSel){const s=getSelection();s.removeAllRanges();s.addRange(rtSel)}
+  ed.focus({preventScroll:true});
+  if(rtSel&&ed.contains(rtSel.commonAncestorContainer)){
+    const selection=getSelection();
+    selection.removeAllRanges();
+    selection.addRange(rtSel);
+  }
   if(cmd==="link"){
-    val=httpsUrl(prompt("Enlace (debe empezar por https://):","https://")||"");
+    const url=prompt("Enlace HTTPS","https://");
+    if(url===null)return;
+    val=httpsUrl(url);
     if(!val)return toast("Enlace no válido.");
+    cmd="createLink";
   }
   document.execCommand("styleWithCSS",false,true);
   document.execCommand(cmd,false,val);
+  rememberNoteSelection();
 }
 function rtField(v){
   const html=!v?"":String(v).startsWith(RT)?cleanHtml(v.slice(RT.length)):prose(v).replace(/\n/g,"<br>");
   const sel=(k,ph,opts)=>`<select data-rt="${k}" aria-label="${ph}"><option value="">${ph}</option>${
     opts.map(([a,b])=>`<option value="${esc(a)}">${esc(b)}</option>`).join("")}</select>`;
   const btn=(c,label,tip)=>`<button type="button" class="rtb" data-cmd="${c}" title="${tip}" aria-label="${tip}">${label}</button>`;
+  const group=(name,controls)=>`<div class="rtgroup" role="group" aria-label="${name}">${controls}</div>`;
   return `<div class="stack"><span class="lbl">Notas de la clase</span><div class="rtbox">
-    <div class="rtbar" role="toolbar" aria-label="Formato del texto">
-    ${sel("block","Estilo",[["<p>","Texto normal"],["<h1>","Título 1"],["<h2>","Título 2"],["<h3>","Subtítulo"],["<blockquote>","Cita"]])}
-    ${sel("font","Fuente",[["Inter","Sans (Inter)"],["Georgia","Serif (Georgia)"],["Instrument Serif","Elegante"],["monospace","Monoespaciada"]])}
-    ${btn("bold","<b>N</b>","Negrita (Ctrl+B)")}${btn("italic","<i>K</i>","Cursiva (Ctrl+I)")}${btn("underline","<u>S</u>","Subrayado (Ctrl+U)")}${btn("strikeThrough","<s>ab</s>","Tachado")}
-    ${sel("color","Color",[["#c58b2a","Dorado"],["#2f9e6e","Verde"],["#3b82f6","Azul"],["#e5484d","Rojo"],["#8b5cf6","Morado"]])}
-    ${sel("hilite","Resaltar",[["rgba(250,204,21,.4)","Amarillo"],["rgba(74,222,128,.35)","Verde"],["rgba(244,114,182,.35)","Rosa"],["transparent","Quitar"]])}
-    ${btn("insertUnorderedList","• Viñetas","Lista con viñetas")}${btn("insertOrderedList","1. Lista","Lista numerada")}${btn("link","Enlace","Insertar enlace")}${btn("insertHorizontalRule","—","Línea separadora")}${btn("removeFormat","Aa ✕","Quitar formato")}
+    <div class="rtbar" role="group" aria-label="Formato del texto">
+      ${group("Historial",btn("undo","↶","Deshacer") + btn("redo","↷","Rehacer"))}
+      ${group("Tipografía",
+        sel("block","Estilo",[["<p>","Texto normal"],["<h1>","Título 1"],["<h2>","Título 2"],["<h3>","Subtítulo"],["<blockquote>","Cita"],["<pre>","Código"]]) +
+        sel("font","Fuente",FAM.map(([name,stack])=>[stack,name])) +
+        sel("size","Tamaño",RT_SIZES.map((size,index)=>[index+1,`${size} px`])))}
+      ${group("Énfasis",
+        btn("bold","<b>N</b>","Negrita (Ctrl+B)") + btn("italic","<i>K</i>","Cursiva (Ctrl+I)") +
+        btn("underline","<u>S</u>","Subrayado (Ctrl+U)") + btn("strikeThrough","<s>ab</s>","Tachado") +
+        btn("subscript","x<sub>2</sub>","Subíndice") + btn("superscript","x<sup>2</sup>","Superíndice"))}
+      ${group("Color",
+        sel("color","Color",[["#c58b2a","Dorado"],["#2f9e6e","Verde"],["#3b82f6","Azul"],["#e5484d","Rojo"],["#8b5cf6","Morado"],["#db6d29","Naranja"],["#e35ca3","Rosa"],["#8b8b97","Gris"]]) +
+        sel("hilite","Resaltar",[["rgba(250,204,21,.4)","Amarillo"],["rgba(74,222,128,.35)","Verde"],["rgba(96,165,250,.35)","Azul"],["rgba(244,114,182,.35)","Rosa"],["transparent","Quitar resaltado"]]))}
+      ${group("Párrafo",
+        sel("align","Alinear",[["left","Izquierda"],["center","Centrar"],["right","Derecha"],["justify","Justificar"]]) +
+        btn("insertUnorderedList","• Viñetas","Lista con viñetas") + btn("insertOrderedList","1. Lista","Lista numerada") +
+        btn("outdent","⇤","Reducir sangría") + btn("indent","⇥","Aumentar sangría"))}
+      ${group("Insertar y limpiar",
+        btn("link","Enlace","Insertar enlace") + btn("insertHorizontalRule","—","Línea separadora") +
+        btn("removeFormat","Aa ✕","Quitar formato"))}
     </div>
     <div id="rtEd" class="rt" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Notas de la clase">${html}</div>
     </div></div><input type="hidden" name="resumen">`;
 }
-document.addEventListener("selectionchange",()=>{
+function rememberNoteSelection(){
   const ed=$("#rtEd"),s=getSelection();
-  if(ed&&s.rangeCount&&ed.contains(s.anchorNode))rtSel=s.getRangeAt(0).cloneRange();
+  if(ed&&s.rangeCount&&ed.contains(s.anchorNode)&&ed.contains(s.focusNode))rtSel=s.getRangeAt(0).cloneRange();
+}
+document.addEventListener("selectionchange",rememberNoteSelection);
+document.addEventListener("mousedown",e=>{
+  if(!e.target.closest?.(".rtbar"))return;
+  rememberNoteSelection();
+  if(e.target.closest(".rtb"))e.preventDefault();
 });
-document.addEventListener("mousedown",e=>{if(e.target.closest?.(".rtb"))e.preventDefault()});
 document.addEventListener("change",e=>{
   const k=e.target.dataset?.rt,v=e.target.value;if(!k||!v)return;
   e.target.value="";
-  rtCmd({block:"formatBlock",font:"fontName",color:"foreColor",hilite:"hiliteColor"}[k],v);
+  if(k==="align")rtCmd(RT_ALIGN[v]);
+  else rtCmd({block:"formatBlock",font:"fontName",size:"fontSize",color:"foreColor",hilite:"hiliteColor"}[k],v);
 });
 document.addEventListener("paste",e=>{
   if(!e.target.closest?.("#rtEd"))return;
