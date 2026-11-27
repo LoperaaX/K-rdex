@@ -604,13 +604,26 @@ function academicDetail(k,r){
       <div class="actions">${action("fromclass","Añadir actividad")}${action("evalfromclass","Añadir evaluación")}</div></div>`;
   }
   const c=r.clase_id&&find("clase",r.clase_id);
+  const activity=r.tipo==="actividad";
   return `<div class="box"><label class="field"><span>Estado de seguimiento</span>
     <select id="quickState" ${S.writing?"disabled":""}>${Object.entries(states).map(([v,t])=>option(v,t,r.estado)).join("")}</select></label>
     ${r.estado!=="completada"?`<div>${action("done","Marcar completada","btn primary")}</div>`:""}
     ${r.peso!=null?`<p>Peso en la nota: <b>${esc(r.peso)}%</b></p>`:""}
     <div class="doc">${prose(r.descripcion)||"Sin descripción."}</div>
-    ${extLink(r.archivo_url,"Abrir archivo en OneDrive")}
-    ${c?keyBtn("clase",c,"Ver clase de origen: "+c.titulo):""}</div>`;
+    ${activity?"":extLink(r.archivo_url,"Abrir archivo en OneDrive")}
+    ${c?keyBtn("clase",c,"Ver clase de origen: "+c.titulo):""}</div>
+    ${activity?`<form id="activityFileForm" class="box">
+      <label class="field">
+        <span>Enlace de OneDrive</span>
+        <input name="archivo_url" type="url" value="${esc(r.archivo_url||"")}" placeholder="https://…" aria-describedby="activityFileHint" autocomplete="off">
+      </label>
+      <small id="activityFileHint">Pega el enlace compartido de un archivo o carpeta.</small>
+      <p class="err" role="alert"></p>
+      <div class="actions">
+        <button type="submit" class="btn primary" ${S.writing?"disabled":""}>Guardar enlace</button>
+        ${extLink(r.archivo_url,"Abrir en OneDrive")}
+      </div>
+    </form>`:""}`;
 }
 
 function chartGroups(records, field, palette){
@@ -1188,7 +1201,7 @@ function edit(k,r=null,preset={}){
         ${selectField("estado","Estado",Object.entries(states).map(([v,t])=>option(v,t,r?.estado||"pendiente")).join(""))}</div>
         <div id="pesoField">${field("peso","Peso en la nota (%) · opcional",r?.peso,"number",'min="0" max="100" step="0.01"')}</div>`+
         area("descripcion","Instrucciones o notas",r?.descripcion)+
-        field("archivo_url","Archivo en OneDrive · enlace HTTPS",r?.archivo_url,"url");
+        field("archivo_url","Archivo o carpeta en OneDrive · enlace HTTPS",r?.archivo_url,"url");
     }
   }
   $("#editorTitle").textContent=title; $("#formFields").innerHTML=html;
@@ -1527,10 +1540,39 @@ $("#results").onkeydown=e=>{
   }
 };
 $("#detail").addEventListener("input",e=>{
+  if(e.target.form?.id==="activityFileForm"){
+    e.target.form.querySelector(".err").textContent="";
+    return;
+  }
   if(!e.target.hasAttribute("data-var"))return;
   S.variables.set(e.target.dataset.var,e.target.value);
   const r=activeTemplate();if(!r)return;
   document.querySelectorAll("[data-preview]").forEach(el=>el.innerHTML=formatted(r[el.dataset.preview]));
+});
+$("#detail").addEventListener("submit",async e=>{
+  const form=e.target;
+  if(form.id!=="activityFileForm")return;
+  e.preventDefault();
+  const activity=current();
+  if(activity?.tipo!=="actividad"||S.writing)return;
+  const input=form.elements.archivo_url;
+  const link=input.value.trim();
+  if(link&&!httpsUrl(link)){
+    form.querySelector(".err").textContent="Pega un enlace HTTPS válido.";
+    input.focus();
+    return;
+  }
+  if(link===(activity.archivo_url||""))return;
+  const epoch=S.epoch;
+  form.querySelector("button").disabled=true;
+  try{
+    await updateCurrent({archivo_url:link||null});
+  }catch(err){
+    const activeForm=$("#activityFileForm");
+    if(epoch!==S.epoch||uid(current()?.id)!==uid(activity.id)||!activeForm)return;
+    activeForm.elements.archivo_url.value=link;
+    activeForm.querySelector(".err").textContent=errorMessage(err);
+  }
 });
 $("#detail").addEventListener("change",e=>{
   const r=current();if(!r)return;
