@@ -23,7 +23,7 @@ const local = {
 
 const emptyData = () => ({soporte:[], materia:[], clase:[], tarea:[], personal:[], moto:[], compras:[]});
 const S = {
-  user:null, data:emptyData(), space:"soporte", view:"all", semOpen:new Set(),
+  user:null, data:emptyData(), space:"soporte", view:"all", semOpen:null,
   group:"", chip:"", q:"", selected:null, variables:new Map(), steps:new Map(),
   month:new Date(), day:"", edit:null, loading:false, writing:false, errors:{}, epoch:0
 };
@@ -175,6 +175,7 @@ function session(user){
     $("#formFields").replaceChildren(); $("#results").replaceChildren(); return;
   }
   if(S.user?.id===user.id){S.user=user;render();return}
+  S.semOpen=null;
   S.user=user; S.data=emptyData(); S.steps.clear(); S.errors={};
   $("#auth").hidden=true; $("#boot").hidden=true; $("#shell").hidden=false;
   switchSpace(local.get("kx-space-"+user.id,"soporte")); load();
@@ -198,7 +199,9 @@ function navButton(attr,value,label,on,count=""){
     <span class="truncate">${esc(label)}</span><small class="text-xs opacity-75">${esc(count)}</small></button>`;
 }
 function semKeyOf(id){return find("materia",id)?.semestre?.trim()||"Sin semestre"}
-function openSemFor(id){if(id)S.semOpen.add(semKeyOf(id))}
+function openSemFor(id){
+  if(id)(S.semOpen??=new Set()).add(semKeyOf(id));
+}
 function semGroups(){
   const map=new Map();
   for(const m of S.data.materia){
@@ -214,16 +217,17 @@ function semGroups(){
 function semesterGroupsHtml(){
   const groups=semGroups();
   if(!groups.length)return `<p class="empty">Aún no hay elementos.</p>`;
-  if(!S.semOpen.size)S.semOpen.add(groups[0][0]);
-  return groups.map(([sem,items])=>{
+  S.semOpen??=new Set([groups[0][0]]);
+  return groups.map(([sem,items],index)=>{
     const open=S.semOpen.has(sem);
+    const panelId=`semester-subjects-${index}`;
     return `<div class="semgrp">
-      <button type="button" class="semhead" data-semtoggle="${esc(sem)}" aria-expanded="${open}">
+      <button type="button" class="semhead" data-semtoggle="${esc(sem)}" aria-expanded="${open}" aria-controls="${panelId}">
         <svg class="chev" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
           stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
         <span class="grow">${esc(sem)}</span><small>${items.length}</small>
       </button>
-      <div class="semlist" ${open?"":"hidden"}>${items.map(m=>
+      <div id="${panelId}" class="semlist" ${open?"":"hidden"}>${items.map(m=>
         navButton("group",m.id,m.nombre,S.group===m.id,S.group===m.id?"×":"")).join("")}</div>
     </div>`;
   }).join("");
@@ -1351,8 +1355,12 @@ document.addEventListener("click",e=>{
     return;
   }
   if(d.semtoggle){
-    S.semOpen.has(d.semtoggle)?S.semOpen.delete(d.semtoggle):S.semOpen.add(d.semtoggle);
-    renderSide();return;
+    const open=S.semOpen.has(d.semtoggle);
+    if(open)S.semOpen.delete(d.semtoggle);
+    else S.semOpen.add(d.semtoggle);
+    b.setAttribute("aria-expanded",String(!open));
+    document.getElementById(b.getAttribute("aria-controls")).hidden=open;
+    return;
   }
   if("group" in d){
     S.group=uid(S.group)===uid(d.group)?"":d.group;openSemFor(S.group);changeView(isUni()?"resumen":S.view);return;
