@@ -1,25 +1,17 @@
-# Conocimiento
+# Kárdex
 
-Base de conocimiento personal para soporte: plantillas con campos rellenables,
-procesos paso a paso y aprendizajes, organizados por aplicación.
-Un solo archivo `index.html` + Supabase (login y base de datos).
+Aplicación web con tres espacios: Soporte para plantillas, procesos y notas,
+Universidad para materias, clases y entregas, y Personal para notas, compras
+y mantenimiento de la moto. Supabase gestiona el acceso y los datos.
 
-## Puesta en marcha (≈10 min)
+## Desarrollo local
 
-1. Crea un proyecto en https://supabase.com
-2. **SQL Editor > New query**: pega `schema.sql` y pulsa **Run**.
-   Al final debe aparecer 1 fila: `solo lo propio | ALL`.
-3. **Authentication > Sign In / Providers > User Signups**: desactiva
-   "Allow new users to sign up" y guarda.
-4. **Authentication > Users > Add user > Create new user**: correo, contraseña
-   y marca "Auto Confirm User". Repite para cada persona (cada una ve solo lo suyo).
-5. **Project Settings > API Keys**: copia la Project URL y la clave `anon`/publishable
-   en `index.html` (`SUPABASE_URL`, `SUPABASE_ANON_KEY`).
-   ⚠️ Nunca uses la clave `service_role` o `secret`.
-6. Prueba local (no lo abras con doble clic):
-   `npx serve .`  o  `python -m http.server 8000`
-7. Publica: arrastra la carpeta a https://app.netlify.com/drop
-8. **Authentication > URL Configuration**: pon el link publicado como Site URL.
+1. Desde la raíz del repositorio, ejecuta `npx serve .` o `python -m http.server 8000`.
+2. Abre la dirección que imprime el servidor e inicia sesión con una cuenta del proyecto de Supabase configurado en `app.js`.
+
+`schema.sql` contiene la migración para el borrado en cascada de materias y las consultas de verificación de permisos. La migración requiere las tablas existentes de Kárdex.
+
+La rama `main` se despliega en [Vercel](https://mikardex.vercel.app/).
 
 ## Uso
 
@@ -36,10 +28,10 @@ La interfaz se sirve como archivos estáticos. Si cambias las clases de Tailwind
 
 | Tecla | Acción |
 |---|---|
-| `Ctrl K` / `⌘ K` | Buscar en todo (también acciones) |
+| `Ctrl K` / `⌘ K` | Buscar en el espacio activo |
 | `N` | Nueva entrada |
 | `/` | Filtrar la lista |
-| `J` / `K` o flechas | Moverse entre entradas |
+| `↑` / `↓` | Moverse entre entradas |
 | `C` | Copiar la entrada abierta |
 | `E` | Editar |
 | `P` | Fijar / desfijar |
@@ -47,4 +39,5 @@ La interfaz se sirve como archivos estáticos. Si cambias las clases de Tailwind
 | `Esc` | Cerrar |
 
 ## Copia de seguridad
-Botón de descarga (abajo a la izquierda) o `Ctrl K` → "Exportar copia (JSON)".
+
+Abre Configuración desde tu perfil y elige **Exportar** en **Respaldo de datos**.
